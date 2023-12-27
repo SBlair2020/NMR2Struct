@@ -109,6 +109,5 @@ def src_fwd_fxn_no_embedding_mlp(src: Tensor,
     """
     assert(src.shape[2] == 2)
     src_key_pad_mask = (src[:,:,0] == src_pad_token).bool().to(src.device)
-    src_embedded = src_embed(src) * math.sqrt(d_model)
-    src_embedded = pos_encoder(src_embedded, None)
+    src_embedded = pos_encoder(src, None)
     return src_embedded, src_key_pad_mask
