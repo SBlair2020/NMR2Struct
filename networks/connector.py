@@ -20,7 +20,7 @@ class ProbabilityEmbedding(nn.Module):
         '''
         return self.layers(x)
 
-class MaxtrixScaleEmbedding(nn.Module):
+class MatrixScaleEmbedding(nn.Module):
     """ Broadcast matrix multiplication connection between substructure predictions and transformer. """
 
     def __init__(self, d_model: int, n_substructures: int = 957):
