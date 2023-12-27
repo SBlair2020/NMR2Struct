@@ -138,8 +138,7 @@ class NMRConvNet(nn.Module):
 
         # Preserve the option to include features from the chemical formula
         if self.n_molfeatures > 0:
-            mol_x = self.mol_embed(mol_x).squeeze(1)
-            mol_x = self.relu(mol_x)
+            mol_x = self.mol_embed(mol_x)
             spectral_x = torch.cat((spectral_x, mol_x), dim = -1)
 
         spectral_x = self.linear2(spectral_x)
