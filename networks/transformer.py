@@ -45,7 +45,7 @@ class Transformer(nn.Module):
                  tgt_forward_function: Callable[[Tensor, nn.Module, int, Optional[nn.Module]], Tuple[Tensor, Optional[Tensor]]],
                  d_model: int = 512, nhead: int = 8, num_encoder_layers: int = 6, num_decoder_layers: int = 6,
                  dim_feedforward: int = 2048, dropout: float = 0.1, activation: str = 'relu', custom_encoder: Optional[Any] = None,
-                 custom_decoder: Optional[Any] = None, target_shape: int = 50, source_shape: int = 957,
+                 custom_decoder: Optional[Any] = None, target_size: int = 50, source_size: int = 957,
                  layer_norm_eps: float = 1e-05, batch_first: bool = True, norm_first: bool = False, 
                  device: torch.device = None, dtype: torch.dtype = torch.float):
         
@@ -59,8 +59,8 @@ class Transformer(nn.Module):
             the embedded src and the src_key_pad_mask
         tgt_forward_function: A function that processes the tgt tensor using the tgt embedding, tgt pad token, and positional encoding to generate
             the embedded tgt and the tgt_key_pad_mask
-        target_shape (int): Size of the target alphabet (including start, stop, and pad tokens).
-        source_shape (int): Size of the source alphabet (including start, stop, and pad tokens).
+        target_size (int): Size of the target alphabet (including start, stop, and pad tokens).
+        source_size (int): Size of the source alphabet (including start, stop, and pad tokens).
         batch_first is set to be default True, more intuitive to reason about dimensionality if batching 
             dimension is first
         """
@@ -73,8 +73,8 @@ class Transformer(nn.Module):
         self.src_pad_token = src_pad_token
         self.tgt_pad_token = tgt_pad_token
 
-        self.tgt_shape = target_shape
-        self.src_shape = source_shape
+        self.tgt_size = target_size
+        self.src_size = source_size
         self.d_model = d_model
         self.dtype = dtype
         self.device = device
@@ -88,7 +88,7 @@ class Transformer(nn.Module):
         
         #Always use start and stop tokens for target, only padding is optional
         self.pos_encoder = PositionalEncoding(d_model, dropout)
-        self.out = nn.Linear(d_model, target_shape)
+        self.out = nn.Linear(d_model, target_size)
 
     def _get_tgt_mask(self, size):
         #Generate a mask for the target to preserve autoregressive property. Note that the mask is 

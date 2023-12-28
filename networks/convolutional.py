@@ -111,7 +111,7 @@ class NMRConvNet(nn.Module):
             tot_num += 36
         
         if self.n_molfeatures > 0:
-            self.mol_embed = nn.Linear(self.n_molfeatures, 8)
+            self.mol_embed = MolEmbed(self.n_molfeatures)
             tot_num += 8
         
         self.linear2 = nn.Linear(tot_num, 1024)
