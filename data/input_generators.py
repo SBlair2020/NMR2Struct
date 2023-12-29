@@ -91,3 +91,5 @@ class SubstructureRepresentationBinary:
     def get_size(self) -> int:
         '''Returns the size of the input alphabet'''
         return self.alphabet_size
+
+# TODO: Methods for variable processing of spectral data (raw tokenized, etc.)

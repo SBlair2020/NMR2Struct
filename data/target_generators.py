@@ -17,7 +17,7 @@ def look_ahead_substructs(labels: np.ndarray) -> int:
         max_len = max(max_len, np.count_nonzero(labels[i]))
     return max_len
 
-class SmilesRepresentationTokenized:
+class SMILESRepresentationTokenized:
     """Processes SMILES strings into tokenized arrays with padding"""
     def __init__(self, 
                  spectra: np.ndarray,
