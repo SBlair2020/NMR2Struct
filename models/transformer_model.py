@@ -9,6 +9,7 @@ class TransformerModel(nn.Module):
     def __init__(self, src_embed: str, tgt_embed: str, 
                  src_pad_token: int, tgt_pad_token: int,
                  src_forward_function: str, tgt_forward_function: str, 
+                 freeze_components: Optional[list] = None,
                  d_model: int = 512, nhead: int = 8, num_encoder_layers: int = 6, num_decoder_layers: int = 6,
                  dim_feedforward: int = 2048, dropout: float = 0.1, activation: str = 'relu', custom_encoder: Optional[Any] = None,
                  custom_decoder: Optional[Any] = None, target_size: int = 50, source_size: int = 957,
@@ -24,6 +25,7 @@ class TransformerModel(nn.Module):
             the embedded src and the src_key_pad_mask
         tgt_forward_function: Name of the function that processes the tgt tensor using the tgt embedding, tgt pad token, and positional encoding to generate
             the embedded tgt and the tgt_key_pad_mask
+        freeze_components: List of component names to freeze
         target_size (int): Size of the target alphabet (including start, stop, and pad tokens).
         source_size (int): Size of the source alphabet (including start, stop, and pad tokens).
         batch_first is set to be default True, more intuitive to reason about dimensionality if batching 
@@ -52,7 +54,23 @@ class TransformerModel(nn.Module):
                                                 dim_feedforward, dropout, activation, custom_encoder,
                                                 custom_decoder, target_size, source_size,
                                                 layer_norm_eps, batch_first, norm_first, device, dtype)
+        
+        if freeze_components is not None:
+            self.freeze(freeze_components)
 
+    def freeze(self, components: list[str]) -> None:
+        """Disables gradients for specific components of the network
+        
+        Args:
+            components: A list of strings corresponding to the model components
+                to freeze, e.g. src_embed, tgt_embed.
+        """
+        #TODO: This will need careful testing
+        for component in components:
+            if hasattr(self.network, component):
+                for param in getattr(self.network, component).parameters():
+                    param.requires_grad = False
+    
     def forward(self, src: Tensor, tgt: Tensor) -> Tensor:
         return self.network(src, tgt)
     
