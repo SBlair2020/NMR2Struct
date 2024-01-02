@@ -79,13 +79,16 @@ def main():
     # view towards hydra 
     # argparse for now
     # Separate arguments
+    print("Parsing arguments...")
     global_args, dataset_args, model_args, training_args = get_args()
 
     # Set up consistent device, datatype, and seed
+    print("Setting up device, datatype, and seed...")
     device = torch.device('cuda:0' if global_args['ngpus'] > 0 else 'cpu')
     dtype = dtype_convert(global_args['dtype'])
     _ = seed_everything(global_args['seed'])
 
+    print("Initializing dataset, model, optimizer, loss, and scheduler...")
     # Set up dataset, model, optimizer, loss, and scheduler
     dataset = create_dataset(dataset_args, dtype, device)
     dataset.save_smiles_alphabet(global_args['savedir'])
@@ -103,6 +106,7 @@ def main():
         scheduler = None
 
     # Set up dataloaders
+    print("Setting up dataloaders...")
     train_set, val_set, test_set = split_data_subsets(dataset, 
                                                     training_args['splits'],
                                                     training_args['train_size'],
@@ -121,6 +125,7 @@ def main():
     writer = SummaryWriter(log_dir = global_args['savedir'])
 
     # Train
+    print("Beinning training")
     losses = fit(model=model,
                 train_loader=train_loader,
                 val_loader=val_loader,
@@ -138,6 +143,7 @@ def main():
                 prev_epochs=training_args['prev_epochs']
                 )
 
+    print("Saving losses")
     with h5py.File(f"{global_args['savedir']}/losses.h5", "w") as f:
         train_losses, val_losses, test_losses, model_names = losses
         f.create_dataset("train_losses", data = train_losses)
