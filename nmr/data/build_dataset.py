@@ -1,4 +1,4 @@
-from data.dataset_sketch import NMRDataset
+from nmr.data.dataset_base import NMRDataset
 import torch
 
 def create_dataset(dataset_args: dict, dtype: torch.dtype, device: torch.device) -> NMRDataset:

@@ -2,7 +2,6 @@ import numpy as np
 from .tokenizer import BasicSmilesTokenizer
 from typing import Tuple
 
-
 def look_ahead_spectra(spectra: np.ndarray, eps: float) -> int:
     """Determines the maximum number of peaks for padding"""
     max_len = 0
