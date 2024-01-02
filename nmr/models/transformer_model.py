@@ -1,4 +1,4 @@
-from networks import transformer, forward_fxns, connector
+from nmr.networks import transformer, forward_fxns, connector
 import torch
 from torch import nn, Tensor
 from typing import Tuple, Callable, Optional, Any

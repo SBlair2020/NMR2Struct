@@ -1,7 +1,7 @@
 import torch
 from torch import nn, Tensor
 from typing import Tuple, Callable, Optional, Any, Union
-import models
+import nmr.models
 
 class CombinedModel(nn.Module):
     """Example model wrapper for the combined model"""
@@ -29,11 +29,11 @@ class CombinedModel(nn.Module):
             dtype: Model datatype. Default is torch.float
         """
         super().__init__()
-        self.model_1 = getattr(models, model_1)(
+        self.model_1 = getattr(nmr.models, model_1)(
             freeze_components = model_1_freeze_components,
             **model_1_args
         )
-        self.model_2 = getattr(models, model_2)(
+        self.model_2 = getattr(nmr.models, model_2)(
             freeze_components = model_2_freeze_components, 
             **model_2_args
         )

@@ -1,4 +1,4 @@
-from networks import convolutional
+from nmr.networks import convolutional
 import torch
 from torch import nn, Tensor
 from typing import Tuple, Callable, Optional
