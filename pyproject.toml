@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "NMR2Struct"
+version = "0.0.1"
+authors = [
+  { name="Frank Hu", email="frankhu@stanford.edu" },
+]
+description = "NMR structure elucidation"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/FranklinHu1/NMR2Struct"
+
+[project.scripts]
+nmr_train = "nmr.scripts.run_nmr_training:main"
+
+
+
+
