@@ -108,6 +108,7 @@ def src_fwd_fxn_no_embedding_mlp(src: Tensor,
         pos_encoder: The positional encoder layer
     """
     assert(src.shape[2] == 2)
+    assert(src_embed is None)
     src_key_pad_mask = (src[:,:,0] == src_pad_token).bool().to(src.device)
     src_embedded = pos_encoder(src, None)
     return src_embedded, src_key_pad_mask

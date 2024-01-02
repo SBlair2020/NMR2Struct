@@ -40,6 +40,8 @@ class TransformerModel(nn.Module):
             src_embed_layer = connector.MatrixScaleEmbedding(d_model, source_size)
         elif src_embed == 'nn.embed':
             src_embed_layer = nn.Embedding(source_size, d_model, padding_idx = src_pad_token)
+        elif src_embed == 'none': 
+            src_embed_layer = None
 
         assert(tgt_embed == 'nn.embed')
         tgt_embed_layer = nn.Embedding(target_size, d_model, padding_idx = tgt_pad_token)

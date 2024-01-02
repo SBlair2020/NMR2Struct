@@ -21,6 +21,10 @@ Homepage = "https://github.com/FranklinHu1/NMR2Struct"
 
 [project.scripts]
 nmr_train = "nmr.scripts.run_nmr_training:main"
+available_models = "nmr.models:get_all_models"
+input_formats = "nmr.data:get_input_generators"
+target_formats = "nmr.data:get_target_generators"
+network_components = "nmr.networks:get_component_report"
 
 
 
