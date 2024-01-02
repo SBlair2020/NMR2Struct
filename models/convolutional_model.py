@@ -27,10 +27,9 @@ class ConvolutionalModel(nn.Module):
                                                 n_substructures,
                                                 dtype,
                                                 device)
-        if freeze_components is not None:
-            self.freeze(freeze_components)
+        self.freeze_components = freeze_components
     
-    def freeze(self, components: list[str]) -> None:
+    def freeze(self) -> None:
         """Disables gradients for specific components of the network
         
         Args:
@@ -38,7 +37,7 @@ class ConvolutionalModel(nn.Module):
                 to freeze, e.g. src_embed, tgt_embed.
         """
         #TODO: This will need careful testing
-        for component in components:
+        for component in self.freeze_components:
             if hasattr(self.network, component):
                 for param in getattr(self.network, component).parameters():
                     param.requires_grad = False

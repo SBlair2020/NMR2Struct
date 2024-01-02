@@ -55,10 +55,9 @@ class TransformerModel(nn.Module):
                                                 custom_decoder, target_size, source_size,
                                                 layer_norm_eps, batch_first, norm_first, device, dtype)
         
-        if freeze_components is not None:
-            self.freeze(freeze_components)
+        self.freeze_components = freeze_components
 
-    def freeze(self, components: list[str]) -> None:
+    def freeze(self) -> None:
         """Disables gradients for specific components of the network
         
         Args:
@@ -66,7 +65,7 @@ class TransformerModel(nn.Module):
                 to freeze, e.g. src_embed, tgt_embed.
         """
         #TODO: This will need careful testing
-        for component in components:
+        for component in self.freeze_components:
             if hasattr(self.network, component):
                 for param in getattr(self.network, component).parameters():
                     param.requires_grad = False

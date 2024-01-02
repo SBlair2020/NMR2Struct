@@ -38,6 +38,19 @@ class CombinedModel(nn.Module):
             **model_2_args
         )
         self.expand_dims = expand_dims
+
+    def freeze(self) -> None:
+        """Disables gradients for specific components of the network
+        
+        Args:
+            components: A list of strings corresponding to the model components
+                to freeze, e.g. src_embed, tgt_embed.
+
+        Since the combined model uses two other models, call each model's respective
+        freeze method. The components have already been stored as class attributes
+        """
+        self.model_1.freeze()
+        self.model_2.freeze()
     
     def forward(self, mod_1_input: Tensor, mod_2_input: Optional[Tensor]) -> Tensor:
         '''
