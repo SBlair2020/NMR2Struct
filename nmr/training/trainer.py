@@ -223,6 +223,7 @@ def fit(model: nn.Module,
                                 writer,
                                 write_freq)
     test_losses.append(final_test_loss)
-    assert(None not in model_names)
-    assert(all(best_losses < np.inf))
+    if nepochs >= top_checkpoints_n:
+        assert(None not in model_names)
+        assert(all(best_losses < np.inf))
     return train_losses, val_losses, test_losses, model_names

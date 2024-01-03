@@ -6,4 +6,4 @@ def create_dataset(dataset_args: dict, dtype: torch.dtype, device: torch.device)
         dtype = dtype, 
         device = device, 
         **dataset_args
-    )
+    ), dataset_args

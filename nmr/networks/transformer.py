@@ -126,11 +126,11 @@ class Transformer(nn.Module):
         inp, smiles = x
         shifted_y, full_y = y
         if isinstance(self.src_embed, nn.Embedding):
-            pred = self.forward(inp.long().to(self.device), 
-                            shifted_y.to(self.device))
-        else:
-            pred = self.forward(inp.float().to(self.device), 
-                            shifted_y.to(self.device))
+            inp = inp.long()
+        if isinstance(self.tgt_embed, nn.Embedding):
+            shifted_y = shifted_y.long()
+            full_y = full_y.long()
+        pred = self.forward(inp.to(self.device), shifted_y.to(self.device))
         pred = pred.permute(0, 2, 1)
         loss = loss_fn(pred, full_y.to(self.device))
         return loss

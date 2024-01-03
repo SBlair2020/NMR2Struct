@@ -2,20 +2,21 @@ import numpy as np
 from .tokenizer import BasicSmilesTokenizer
 from typing import Tuple
 
-def look_ahead_smiles(smiles: np.ndarray, tokenizer: BasicSmilesTokenizer) -> int:
+def look_ahead_smiles(smiles: list[str], tokenizer: BasicSmilesTokenizer) -> int:
     """Determines the maximum length of the smiles strings in numbers of tokens"""
     max_len = 0
     for i in range(len(smiles)):
         tokens = tokenizer.tokenize(smiles[i])
         max_len = max(max_len, len(tokens))
-    return max_len
+    #To account for additional stop token 
+    return max_len + 1 
 
 def look_ahead_substructs(labels: np.ndarray) -> int:
     """Determines the maximum sequence length for padding"""
     max_len = 0
     for i in range(len(labels)):
         max_len = max(max_len, np.count_nonzero(labels[i]))
-    return max_len
+    return max_len + 1
 
 class SMILESRepresentationTokenized:
     """Processes SMILES strings into tokenized arrays with padding"""
@@ -90,7 +91,7 @@ class SubstructureRepresentationBinary:
         self.pad_token = None
         self.start_token = 3
         self.stop_token = 2
-        self.max_len = look_ahead_substructs(labels)
+        self.max_len = 957 + 1 #957 substructures plus an additional token
         self.alphabet_size = 4
 
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:

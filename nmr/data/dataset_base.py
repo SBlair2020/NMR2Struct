@@ -37,6 +37,8 @@ class NMRDataset(Dataset):
         self.spectra = self.spectra_h5['spectra']
         self.labels = self.label_h5['substructure_labels']
         self.smiles = np.load(smiles_file, allow_pickle = True)
+        #Canonicalize up front
+        self.smiles = [chem.CanonSmiles(smi.decode('utf-8')) for smi in self.smiles]
         self.tokenizer = BasicSmilesTokenizer()
         self.eps = eps
 
@@ -62,7 +64,7 @@ class NMRDataset(Dataset):
     def __len__(self):
         return len(self.labels)
 
-    def _determine_smiles_alphabet(self, smiles: List[str]):
+    def _determine_smiles_alphabet(self, smiles: list[str]):
         """Generates the alphabet from the set of smiles strings
         Args:
             smiles: list of smiles strings
@@ -79,13 +81,15 @@ class NMRDataset(Dataset):
     
     def __getitem__(self, idx):
         spectra_data = self.spectra[idx]
-        smiles_data = chem.CanonSmiles(self.smiles[idx].decode("utf-8"))
+        smiles_data = self.smiles[idx]
         label_data = self.labels[idx]
+        #Note: model_input is a Tensor, model_target is a tuple of Tensors!
         model_input = self.input_generator.transform(spectra_data, smiles_data, label_data)
         model_target = self.target_generator.transform(spectra_data, smiles_data, label_data)
         model_input = torch.from_numpy(model_input).to(self.dtype).to(self.device)
-        model_target = torch.from_numpy(model_target).to(self.dtype).to(self.device)
-        return (model_input, smiles_data), model_target
+        first_elemeent = torch.from_numpy(model_target[0]).to(self.dtype).to(self.device)
+        second_element = torch.from_numpy(model_target[1]).to(self.dtype).to(self.device)
+        return (model_input, smiles_data), (first_elemeent, second_element)
     
     def get_sizes(self) -> dict[int, int]:
         """Returns the padding tokens for the input and target"""

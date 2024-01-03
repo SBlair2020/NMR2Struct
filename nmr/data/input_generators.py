@@ -85,7 +85,9 @@ class SubstructureRepresentationBinary:
             alphabet: Path to the alphabet file
             eps: Epsilon value for thresholding spectra
         """
-        self.alphabet_size = 2
+        #We set the alphabet to 957 because binary representation requires 957 tokens 
+        #   (even though each token is a 0 or 1)
+        self.alphabet_size = 957
 
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
         """Returns the substructure array"""

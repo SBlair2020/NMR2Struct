@@ -37,4 +37,7 @@ def create_model(model_args: dict, dtype: torch.dtype, device: torch.device, add
     #Freeze requisite components
     model.freeze()
 
-    return model
+    #Update the model args
+    model_args['model_args'] = model_config
+
+    return model, model_args

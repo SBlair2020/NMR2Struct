@@ -67,10 +67,11 @@ class TransformerModel(nn.Module):
                 to freeze, e.g. src_embed, tgt_embed.
         """
         #TODO: This will need careful testing
-        for component in self.freeze_components:
-            if hasattr(self.network, component):
-                for param in getattr(self.network, component).parameters():
-                    param.requires_grad = False
+        if self.freeze_components is not None:
+            for component in self.freeze_components:
+                if hasattr(self.network, component):
+                    for param in getattr(self.network, component).parameters():
+                        param.requires_grad = False
     
     def forward(self, src: Tensor, tgt: Tensor) -> Tensor:
         return self.network(src, tgt)

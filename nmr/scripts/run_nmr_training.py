@@ -95,17 +95,21 @@ def main():
 
     print("Initializing dataset, model, optimizer, loss, and scheduler...")
     # Set up dataset, model, optimizer, loss, and scheduler
-    dataset = create_dataset(dataset_args, dtype, device)
+    dataset, updated_dataset_args = create_dataset(dataset_args, dtype, device)
     dataset.save_smiles_alphabet(global_args['savedir'])
     size_dict = dataset.get_sizes()
     token_dict = dataset.get_ctrl_tokens()
     total_dict = {**size_dict, **token_dict}
-    model = create_model(model_args, dtype, device, addn_opts = total_dict)
+    print(total_dict)
+    model, updated_model_args = create_model(model_args, dtype, device, addn_opts = total_dict)
     model.to(dtype).to(device)
     optimizer = create_optimizer(model, model_args, training_args, dtype, device)
     loss_fn = getattr(nn, training_args['loss_fn'])
+
     if training_args['loss_fn_args'] is not None:
         loss_fn = loss_fn(**training_args['loss_fn_args'])
+    else:
+        loss_fn = loss_fn()
 
     if training_args['scheduler'] is not None:
         scheduler_raw = getattr(optim.lr_scheduler, training_args['scheduler'])
@@ -135,8 +139,8 @@ def main():
     # Save completed config
     tot_config = {
         'global_args' : global_args,
-        'data' : dataset_args,
-        'model' : model_args,
+        'data' : updated_dataset_args,
+        'model' : updated_model_args,
         'training' : training_args
     }
     save_completed_config(tot_config, global_args['savedir'])
@@ -144,9 +148,9 @@ def main():
     # Train
     print("Beinning training")
     losses = fit(model=model,
-                train_loader=train_loader,
-                val_loader=val_loader,
-                test_loader=test_loader,
+                train_dataloader=train_loader,
+                val_dataloader=val_loader,
+                test_dataloader=test_loader,
                 loss_fn=loss_fn,
                 optimizer=optimizer,
                 nepochs=training_args['nepochs'],
