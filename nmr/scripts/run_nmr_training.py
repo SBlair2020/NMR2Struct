@@ -50,6 +50,11 @@ def dtype_convert(dtype: str) -> torch.dtype:
     }
     return dtype_dict[dtype]
 
+def save_completed_config(config: dict, savedir: str) -> None:
+    '''Saves the completed config file to the savedir'''
+    with open(f"{savedir}/full_config.yaml", 'w') as f:
+        yaml.dump(config, f, default_flow_style=False)
+
 def split_data_subsets(dataset: Dataset,
                        splits: Optional[str],
                        train_size: float = 0.8,
@@ -126,6 +131,15 @@ def main():
 
     # Set up tensorboard writer
     writer = SummaryWriter(log_dir = global_args['savedir'])
+
+    # Save completed config
+    tot_config = {
+        'global_args' : global_args,
+        'data' : dataset_args,
+        'model' : model_args,
+        'training' : training_args
+    }
+    save_completed_config(tot_config, global_args['savedir'])
 
     # Train
     print("Beinning training")
