@@ -226,4 +226,4 @@ def fit(model: nn.Module,
     if nepochs >= top_checkpoints_n:
         assert(None not in model_names)
         assert(all(best_losses < np.inf))
-    return train_losses, val_losses, test_losses, model_names
+    return train_losses, val_losses, test_losses, model_names, best_losses

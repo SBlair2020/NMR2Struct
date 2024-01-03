@@ -13,6 +13,7 @@ from typing import Optional, Union
 import h5py
 import random
 import os
+import pickle as pkl
 
 def get_args() -> dict:
     '''Parses the passed yaml file to get arguments'''
@@ -163,14 +164,17 @@ def main():
                 test_freq=training_args['test_freq'],
                 prev_epochs=training_args['prev_epochs']
                 )
-
+    
+    train_losses, val_losses, test_losses, model_names, best_losses = losses
+    
     print("Saving losses")
     with h5py.File(f"{global_args['savedir']}/losses.h5", "w") as f:
-        train_losses, val_losses, test_losses, model_names = losses
         f.create_dataset("train_losses", data = train_losses)
         f.create_dataset("val_losses", data = val_losses)
         f.create_dataset("test_losses", data = test_losses)
-        f.create_dataset("model_names", data = model_names)
+    
+    with open(f"{global_args['savedir']}/model_names_losses.pkl", "wb") as f:
+        pkl.dump((model_names, best_losses), f)
 
 if __name__ == '__main__':
     main()
