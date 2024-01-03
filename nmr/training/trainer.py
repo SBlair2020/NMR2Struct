@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from typing import Callable, Optional
-from torch.utils.tensorboard import SummaryWriter
+import re
 
 def train_loop(model: nn.Module, 
                dataloader: torch.utils.data.DataLoader, 
@@ -133,6 +133,20 @@ def delete_checkpoint(checkpoint: str) -> None:
     """
     os.remove(checkpoint)
 
+def extract_loss_val(checkpoint_name: str) -> float:
+    """Extract loss value from a checkpoint name"""
+    return float(re.findall(r"\d+\.\d+", checkpoint_name)[0])
+
+def determine_existing_checkpoints(savedir: str) -> tuple[list, list]:
+    all_files = os.listdir(savedir)
+    checkpoint_files = list(filter(lambda x: x.endswith('.pt'), all_files))
+    if len(checkpoint_files) == 0:
+        return [], []
+    else:
+        checkpoint_losses = list(map(extract_loss_val, checkpoint_files))
+        checkpoint_files = list(map(lambda x: f'{savedir}/{x}', checkpoint_files))
+        return checkpoint_files, checkpoint_losses
+
 def fit(model: nn.Module,
         train_dataloader: torch.utils.data.DataLoader, 
         val_dataloader: torch.utils.data.DataLoader, 
@@ -169,8 +183,10 @@ def fit(model: nn.Module,
         prev_epochs: The number of epochs that have already been trained for. This is used
             for loading checkpoints
     """
-    best_losses = np.ones(top_checkpoints_n) * np.inf
-    model_names = [None] * top_checkpoints_n
+    existing_files, existing_losses = determine_existing_checkpoints(save_dir)
+    assert(len(existing_files) == len(existing_losses))
+    best_losses = np.concatenate((np.ones(top_checkpoints_n - len(existing_losses)) * np.inf, np.array(existing_losses)))
+    model_names = [None] * (top_checkpoints_n - len(existing_files)) + existing_files
     train_losses, val_losses, test_losses = [], [], []
     for epoch in range(nepochs):
         true_epoch = epoch + prev_epochs
