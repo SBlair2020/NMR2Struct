@@ -62,8 +62,12 @@ class SubstructureRepresentationOneIndexed:
         '''Returns the size of the input alphabet'''
         return self.alphabet_size
     
+    def get_ctrl_tokens(self) -> tuple[int, int, int]:
+        '''Returns the stop, start, and pad tokens in that order (inputs typically only have pad tokens)'''
+        return (None, None, self.pad_token)
+    
 class SubstructureRepresentationBinary:
-    """Dummy class for binary substructure representation and interace consistency"""
+    """Dummy class for binary substructure representation and interface consistency"""
     def __init__(self, 
                  spectra: np.ndarray,
                  labels: np.ndarray,
@@ -85,10 +89,14 @@ class SubstructureRepresentationBinary:
 
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
         """Returns the substructure array"""
-        return substructures
+        return np.expand_dims(substructures, axis = -1)
     
     def get_size(self) -> int:
         '''Returns the size of the input alphabet'''
         return self.alphabet_size
+    
+    def get_ctrl_tokens(self) -> tuple[int, int, int]:
+        '''Returns the stop, start, and pad tokens in that order (inputs typically only have pad tokens)'''
+        return (None, None, None)
 
 # TODO: Methods for variable processing of spectral data (raw tokenized, etc.)

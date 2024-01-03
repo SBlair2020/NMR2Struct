@@ -92,7 +92,10 @@ def main():
     # Set up dataset, model, optimizer, loss, and scheduler
     dataset = create_dataset(dataset_args, dtype, device)
     dataset.save_smiles_alphabet(global_args['savedir'])
-    model = create_model(model_args, dtype, device, size_dict = dataset.get_sizes())
+    size_dict = dataset.get_sizes()
+    token_dict = dataset.get_ctrl_tokens()
+    total_dict = {**size_dict, **token_dict}
+    model = create_model(model_args, dtype, device, addn_opts = total_dict)
     model.to(dtype).to(device)
     optimizer = create_optimizer(model, model_args, training_args, dtype, device)
     loss_fn = getattr(nn, training_args['loss_fn'])

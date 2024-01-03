@@ -64,6 +64,10 @@ class SMILESRepresentationTokenized:
         '''Returns the size of the target alphabet'''
         return self.alphabet_size
     
+    def get_ctrl_tokens(self) -> tuple[int, int, int]:
+        '''Returns the stop, start, and pad tokens in that order'''
+        return (self.stop_token, self.start_token, self.pad_token)
+    
 class SubstructureRepresentationBinary:
     """Processes binary substructure representation, augmented with start and stop tokens"""
     def __init__(self, 
@@ -105,6 +109,10 @@ class SubstructureRepresentationBinary:
     def get_size(self) -> int:
         '''Returns the size of the target alphabet'''
         return self.alphabet_size
+    
+    def get_ctrl_tokens(self) -> tuple[int, int, int]:
+        '''Returns the stop, start, and pad tokens in that order'''
+        return (self.stop_token, self.start_token, self.pad_token)
     
 class SubstructureRepresentationOneIndexed:
     """Processes binary substructures into 1-indexed arrays with padding and ctrl tokens"""
@@ -158,3 +166,7 @@ class SubstructureRepresentationOneIndexed:
     def get_size(self) -> int:
         '''Returns the size of the target alphabet'''
         return self.alphabet_size
+    
+    def get_ctrl_tokens(self) -> tuple[int, int, int]:
+        '''Returns the stop, start, and pad tokens in that order'''
+        return (self.stop_token, self.start_token, self.pad_token)

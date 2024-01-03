@@ -92,3 +92,19 @@ class NMRDataset(Dataset):
         input_size = self.input_generator.get_size()
         target_size = self.target_generator.get_size()
         return {'source_size' : input_size, 'target_size' : target_size}
+    
+    def get_ctrl_tokens(self) -> dict[str, int]:
+        """Returns the stop, start, and pad tokens for the input and target as dicts"""
+        input_tokens = self.input_generator.get_ctrl_tokens()
+        target_tokens = self.target_generator.get_ctrl_tokens()
+        src_stop_token, src_start_token, src_pad_token = input_tokens
+        tgt_stop_token, tgt_start_token, tgt_pad_token = target_tokens
+        token_dict = {
+            'src_stop_token'  : src_stop_token,
+            'src_start_token' : src_start_token,
+            'src_pad_token'   : src_pad_token,
+            'tgt_stop_token'  : tgt_stop_token,
+            'tgt_start_token' : tgt_start_token,
+            'tgt_pad_token'   : tgt_pad_token
+        }
+        return token_dict
