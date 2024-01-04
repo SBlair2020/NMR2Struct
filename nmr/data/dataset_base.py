@@ -87,7 +87,7 @@ class NMRDataset(Dataset):
         model_input = self.input_generator.transform(spectra_data, smiles_data, label_data)
         model_target = self.target_generator.transform(spectra_data, smiles_data, label_data)
         model_input = torch.from_numpy(model_input).to(self.dtype).to(self.device)
-        model_target = (torch.from_numpy(elem).to(self.dtype).to(self.device) for elem in model_target)
+        model_target = tuple([torch.from_numpy(elem).to(self.dtype).to(self.device) for elem in model_target])
         return (model_input, smiles_data), model_target
     
     def get_sizes(self) -> dict[int, int]:

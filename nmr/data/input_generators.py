@@ -96,6 +96,7 @@ class SubstructureRepresentationBinary:
 
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
         """Returns the substructure array"""
+        #We expand here because for substructure to structure, the transformer expects a 3D input
         return np.expand_dims(substructures, axis = -1)
     
     def get_size(self) -> int:

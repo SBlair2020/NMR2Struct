@@ -123,6 +123,8 @@ class NMRConvNet(nn.Module):
         Args:
             x: (batch_size, 1, seq_len)
         """
+        if len(x.shape) == 2:
+            x = torch.unsqueeze(x, 1)
         # Separate out the features contained within the input vector
         spectral_x = x[:, :, :self.n_spectral_features]
         cnmr_x = x[:, :, self.n_spectral_features:self.n_spectral_features + self.n_Cfeatures]
