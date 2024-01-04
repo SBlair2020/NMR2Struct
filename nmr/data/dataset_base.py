@@ -87,9 +87,8 @@ class NMRDataset(Dataset):
         model_input = self.input_generator.transform(spectra_data, smiles_data, label_data)
         model_target = self.target_generator.transform(spectra_data, smiles_data, label_data)
         model_input = torch.from_numpy(model_input).to(self.dtype).to(self.device)
-        first_elemeent = torch.from_numpy(model_target[0]).to(self.dtype).to(self.device)
-        second_element = torch.from_numpy(model_target[1]).to(self.dtype).to(self.device)
-        return (model_input, smiles_data), (first_elemeent, second_element)
+        model_target = (torch.from_numpy(elem).to(self.dtype).to(self.device) for elem in model_target)
+        return (model_input, smiles_data), model_target
     
     def get_sizes(self) -> dict[int, int]:
         """Returns the padding tokens for the input and target"""

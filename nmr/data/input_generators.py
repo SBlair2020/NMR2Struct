@@ -37,6 +37,8 @@ class SubstructureRepresentationOneIndexed:
             eps: Epsilon value for thresholding spectra
         """
         self.pad_token = 0
+        self.stop_token = None
+        self.start_token = None
         self.max_len = look_ahead_substructs(labels)
         self.alphabet_size = labels.shape[1] + 1
     
@@ -64,7 +66,7 @@ class SubstructureRepresentationOneIndexed:
     
     def get_ctrl_tokens(self) -> tuple[int, int, int]:
         '''Returns the stop, start, and pad tokens in that order (inputs typically only have pad tokens)'''
-        return (None, None, self.pad_token)
+        return (self.stop_token, self.start_token, self.pad_token)
     
 class SubstructureRepresentationBinary:
     """Dummy class for binary substructure representation and interface consistency"""
@@ -88,6 +90,9 @@ class SubstructureRepresentationBinary:
         #We set the alphabet to 957 because binary representation requires 957 tokens 
         #   (even though each token is a 0 or 1)
         self.alphabet_size = 957
+        self.pad_token = None
+        self.stop_token = None
+        self.start_token = None
 
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
         """Returns the substructure array"""
@@ -99,6 +104,72 @@ class SubstructureRepresentationBinary:
     
     def get_ctrl_tokens(self) -> tuple[int, int, int]:
         '''Returns the stop, start, and pad tokens in that order (inputs typically only have pad tokens)'''
-        return (None, None, None)
+        return (self.stop_token, self.start_token, self.pad_token)
 
-# TODO: Methods for variable processing of spectral data (raw tokenized, etc.)
+# TODO: Finish implementing the rest of the input generators
+class SpectrumRepresentationUnprocessed:
+
+    def __init__(self, spectra: np.ndarray,
+                 labels: np.ndarray,
+                 smiles: np.ndarray,
+                 tokenizer: BasicSmilesTokenizer,
+                 alphabet: np.ndarray,
+                 eps: float):
+        
+        self.pad_token = None
+        self.stop_token = None
+        self.start_token = None
+        self.alphabet_size = 28045
+    
+    def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
+        """Returns the spectra array"""
+        return spectra
+    
+    def get_size(self) -> int:
+        '''Returns the size of the input alphabet'''
+        return self.alphabet_size
+    
+    def get_ctrl_tokens(self) -> tuple[int, int, int]:
+        '''Returns the stop, start, and pad tokens in that order (inputs typically only have pad tokens)'''
+        return (self.stop_token, self.start_token, self.pad_token)
+    
+class SpectrumRepresentationThresholdTokenized:
+
+    def __init__(self, spectra: np.ndarray,
+                 labels: np.ndarray,
+                 smiles: np.ndarray,
+                 tokenizer: BasicSmilesTokenizer,
+                 alphabet: np.ndarray,
+                 eps: float):
+        raise NotImplementedError
+    
+class SpectrumRepresentationThresholdPairs:
+
+    def __init__(self, spectra: np.ndarray,
+                 labels: np.ndarray,
+                 smiles: np.ndarray,
+                 tokenizer: BasicSmilesTokenizer,
+                 alphabet: np.ndarray,
+                 eps: float):
+        raise NotImplementedError
+
+class SpectrumRepresentationThresholdPeaksTokenized:
+    
+    def __init__(self, spectra: np.ndarray,
+                labels: np.ndarray,
+                smiles: np.ndarray,
+                tokenizer: BasicSmilesTokenizer,
+                alphabet: np.ndarray,
+                eps: float):
+        raise NotImplementedError
+    
+class SpectrumRepresentationThresholdPeaksPairs:
+
+    def __init__(self, spectra: np.ndarray,
+                labels: np.ndarray,
+                smiles: np.ndarray,
+                tokenizer: BasicSmilesTokenizer,
+                alphabet: np.ndarray,
+                eps: float):
+        raise NotImplementedError
+    

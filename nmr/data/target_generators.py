@@ -115,6 +115,42 @@ class SubstructureRepresentationBinary:
         '''Returns the stop, start, and pad tokens in that order'''
         return (self.stop_token, self.start_token, self.pad_token)
     
+class SubstructureRepresentationUnprocessed:
+
+    def __init__(self, 
+                 spectra: np.ndarray,
+                 labels: np.ndarray,
+                 smiles: np.ndarray,
+                 tokenizer: BasicSmilesTokenizer,
+                 alphabet: np.ndarray,
+                 eps: float):
+        """
+        Args:
+            spectra_file: Path to the HDF5 file with spectra
+            smiles_file: Path to the HDF5 file with smiles
+            label_file: Path to the HDF5 file with substructure labels
+            input_generator: Function name that generates the model input
+            target_generator: Function name that generates the model target
+            alphabet: Path to the alphabet file
+            eps: Epsilon value for thresholding spectra
+        """
+        self.pad_token = None
+        self.start_token = None
+        self.stop_token = None
+        self.alphabet_size = 957
+    
+    def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Transforms the input binary substructure array into tuple of arrays with stop and start tokens"""
+        return (substructures,)
+    
+    def get_size(self) -> int:
+        '''Returns the size of the target alphabet'''
+        return self.alphabet_size
+    
+    def get_ctrl_tokens(self) -> tuple[int, int, int]:
+        '''Returns the stop, start, and pad tokens in that order'''
+        return (self.stop_token, self.start_token, self.pad_token)
+    
 class SubstructureRepresentationOneIndexed:
     """Processes binary substructures into 1-indexed arrays with padding and ctrl tokens"""
     def __init__(self, 
