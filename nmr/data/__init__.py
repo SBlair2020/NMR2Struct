@@ -4,7 +4,9 @@ def get_input_generators():
     all_input_generators = [
         'SubstructureRepresentationOneIndexed',
         'SubstructureRepresentationBinary',
-        'SpectrumRepresentationUnprocessed'
+        'SpectrumRepresentationUnprocessed',
+        'SpectrumRepresentationThresholdTokenized',
+        'SpectrumRepresentationThresholdPairs'
     ]
     print(all_input_generators)
 

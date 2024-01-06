@@ -236,7 +236,7 @@ class SpectrumRepresentationUnprocessed:
         '''Returns the stop, start, and pad tokens in that order (inputs typically only have pad tokens)'''
         return (self.stop_token, self.start_token, self.pad_token)
 
-class SpectrumRepresentationTokenized:
+class SpectrumRepresentationThresholdTokenized:
     """Selects peaks from the spectrum after thresholding and tokenizes them"""
     def __init__(self, 
                  spectra: np.ndarray,
