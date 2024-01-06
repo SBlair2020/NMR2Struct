@@ -16,7 +16,9 @@ class NMRDataset(Dataset):
                  smiles_file: str,
                  label_file: str, 
                  input_generator: str,
+                 input_generator_addn_args: dict,
                  target_generator: str, 
+                 target_generator_addn_args: dict,
                  alphabet: str,
                  eps: float = 0.005,
                  dtype: torch.dtype = torch.float,
@@ -54,11 +56,13 @@ class NMRDataset(Dataset):
         #   determine global information, i.e. max lengths and padding
         self.input_generator = getattr(input_generators, input_generator)(
             self.spectra, self.labels, self.smiles, 
-            self.tokenizer, self.alphabet, self.eps
+            self.tokenizer, self.alphabet, self.eps,
+            **input_generator_addn_args
         )
         self.target_generator = getattr(target_generators, target_generator)(
             self.spectra, self.labels, self.smiles, 
-            self.tokenizer, self.alphabet, self.eps
+            self.tokenizer, self.alphabet, self.eps,
+            **target_generator_addn_args
         )
 
     def __len__(self):
