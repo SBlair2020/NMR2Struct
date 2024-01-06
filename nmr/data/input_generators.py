@@ -23,6 +23,8 @@ def spectrum_extraction(spectrum: np.ndarray, criterion: str) -> np.ndarray:
         indices = np.where(spectrum > 0)[0]
     elif criterion == 'find_peaks':
         indices, _ = find_peaks(spectrum)
+    else:
+        raise ValueError("Invalid criterion for spectrum extraction")
     return indices
 
 def select_points(spectra: np.ndarray, hnmr_criterion: str, cnmr_criterion: str) -> np.ndarray:
@@ -51,7 +53,6 @@ def point_representation(representation_name: str,
         cnmr_spectrum: Numpy array of the CNMR intensities
         hnmr_indices: Numpy array of selected HNMR indices
         cnmr_indices: Numpy array of selected CNMR indices
-        eps: Epsilon value for thresholding spectra
         hnmr_shifts: Array of HNMR shifts. Required for 'continuous_pair' representation
         cnmr_shifts: Array of CNMR shifts. Required for 'continuous_pair' representation
         bins: np.ndarray, bin array to use for digitizing spectra
@@ -122,11 +123,10 @@ class SubstructureRepresentationOneIndexed:
                  eps: float):
         """
         Args:
-            spectra_file: Path to the HDF5 file with spectra
-            smiles_file: Path to the HDF5 file with smiles
-            label_file: Path to the HDF5 file with substructure labels
-            input_generator: Function name that generates the model input
-            target_generator: Function name that generates the model target
+            spectra: Numpy array of all spectra
+            labels: Numpy array of all substructures
+            smiles: Numpy array of all smiles
+            tokenizer: Tokenizer to use for smiles
             alphabet: Path to the alphabet file
             eps: Epsilon value for thresholding spectra
         """
@@ -173,11 +173,10 @@ class SubstructureRepresentationBinary:
                  eps: float):
         """
         Args:
-            spectra_file: Path to the HDF5 file with spectra
-            smiles_file: Path to the HDF5 file with smiles
-            label_file: Path to the HDF5 file with substructure labels
-            input_generator: Function name that generates the model input
-            target_generator: Function name that generates the model target
+            spectra: Numpy array of all spectra
+            labels: Numpy array of all substructures
+            smiles: Numpy array of all smiles
+            tokenizer: Tokenizer to use for smiles
             alphabet: Path to the alphabet file
             eps: Epsilon value for thresholding spectra
         """
@@ -203,12 +202,22 @@ class SubstructureRepresentationBinary:
 
 class SpectrumRepresentationUnprocessed:
 
-    def __init__(self, spectra: np.ndarray,
+    def __init__(self, 
+                 spectra: np.ndarray,
                  labels: np.ndarray,
                  smiles: np.ndarray,
                  tokenizer: BasicSmilesTokenizer,
                  alphabet: np.ndarray,
                  eps: float):
+        """
+        Args:
+            spectra: Numpy array of all spectra
+            labels: Numpy array of all substructures
+            smiles: Numpy array of all smiles
+            tokenizer: Tokenizer to use for smiles
+            alphabet: Path to the alphabet file
+            eps: Epsilon value for thresholding spectra
+        """
         
         self.pad_token = None
         self.stop_token = None
@@ -229,7 +238,8 @@ class SpectrumRepresentationUnprocessed:
 
 class SpectrumRepresentationTokenized:
     """Selects peaks from the spectrum after thresholding and tokenizes them"""
-    def __init__(self, spectra: np.ndarray,
+    def __init__(self, 
+                 spectra: np.ndarray,
                  labels: np.ndarray,
                  smiles: np.ndarray,
                  tokenizer: BasicSmilesTokenizer,
@@ -238,6 +248,28 @@ class SpectrumRepresentationTokenized:
                  hnmr_selection: str = 'all_nonzero',
                  cnmr_selection: str = 'all_nonzero',
                  nbins: int = 200):
+        """
+        Args:
+            spectra: Numpy array of all spectra
+            labels: Numpy array of all substructures
+            smiles: Numpy array of all smiles
+            tokenizer: Tokenizer to use for smiles
+            alphabet: Path to the alphabet file
+            eps: Epsilon value for thresholding spectra
+            hnmr_selection: The criterion to use for selecting HNMR peaks. See documentation for 
+                spectrum_extraction() for valid arguments
+            cnmr_selection: The criterion to use for selecting CNMR peaks. See documentation for 
+                spectrum_extraction() for valid arguments
+            nbins: The number of bins to use for digitizing the spectra
+
+        Note: The additional arguments:
+            hnmr_selection,
+            cnmr_selection,
+            nbins
+        should be specified in the config file as additional arguments for the input generator
+
+        Spectra are expected as arrays of normalized intensity with values in [0, 1]
+        """
         
         self.hnmr_criterion = hnmr_selection
         self.cnmr_criterion = cnmr_selection
@@ -286,7 +318,27 @@ class SpectrumRepresentationThresholdPairs:
                  cnmr_shifts: str = None):
         """
         Args:
-            
+            spectra: Numpy array of all spectra
+            labels: Numpy array of all substructures
+            smiles: Numpy array of all smiles
+            tokenizer: Tokenizer to use for smiles
+            alphabet: Path to the alphabet file
+            eps: Epsilon value for thresholding spectra
+            hnmr_selection: The criterion to use for selecting HNMR peaks. See documentation for 
+                spectrum_extraction() for valid arguments
+            cnmr_selection: The criterion to use for selecting CNMR peaks. See documentation for 
+                spectrum_extraction() for valid arguments
+            hnmr_shifts: Path to a file specifying the HNMR shift values
+            cnmr_shifts: Path to a file specifying the CNMR shift values
+
+        Note: The additional arguments:
+            hnmr_selection,
+            cnmr_selection,
+            hnmr_shifts,
+            cnmr_shifts
+        should be specified in the config file as additional arguments for the input generator
+
+        Spectra are expected as arrays of normalized intensity with values in [0, 1]
         """
         #Handle shift initialization
         if hnmr_shifts is not None:
