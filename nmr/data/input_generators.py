@@ -366,7 +366,7 @@ class SpectrumRepresentationThresholdPairs:
 
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
         spectra = threshold_spectra(spectra, self.eps)
-        hnmr_spectrum, cnmr_spectrum, hnmr_indices, cnmr_indices = select_points(spectra, 'all_nonzero', 'all_nonzero')
+        hnmr_spectrum, cnmr_spectrum, hnmr_indices, cnmr_indices = select_points(spectra, self.hnmr_criterion, self.cnmr_criterion)
         processed_spectrum = point_representation(self.representation_name,
                                                   hnmr_spectrum,
                                                   cnmr_spectrum,
