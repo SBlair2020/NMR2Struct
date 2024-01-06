@@ -1,14 +1,8 @@
 import numpy as np
 from .tokenizer import BasicSmilesTokenizer
 from typing import Tuple
-
-def look_ahead_spectra(spectra: np.ndarray, eps: float) -> int:
-    """Determines the maximum number of peaks for padding"""
-    max_len = 0
-    for i in range(len(spectra)):
-        num_nonzero = np.sum(spectra[i] > eps)
-        max_len = max(max_len, num_nonzero)
-    return max_len
+from scipy.signal import find_peaks
+import warnings
 
 def look_ahead_substructs(labels: np.ndarray) -> int:
     """Determines the maximum sequence length for padding"""
@@ -16,6 +10,106 @@ def look_ahead_substructs(labels: np.ndarray) -> int:
     for i in range(len(labels)):
         max_len = max(max_len, np.count_nonzero(labels[i]))
     return max_len
+
+### Spectrum processing methods ###
+def threshold_spectra(spectra: np.ndarray, eps: float) -> np.ndarray:
+    """Sets values lower than eps to 0"""
+    spectra[spectra < eps] = 0
+    return spectra
+
+def spectrum_extraction(spectrum: np.ndarray, criterion: str) -> np.ndarray:
+    """Extracts the indices from a spectrum based on the given criterion"""
+    if criterion == 'all_nonzero':
+        indices = np.where(spectrum > 0)[0]
+    elif criterion == 'find_peaks':
+        indices, _ = find_peaks(spectrum)
+    return indices
+
+def select_points(spectra: np.ndarray, hnmr_criterion: str, cnmr_criterion: str) -> np.ndarray:
+    hnmr_spectrum = spectra[:28000]
+    cnmr_spectrum = spectra[28000:28040]
+    hnmr_indices = spectrum_extraction(hnmr_spectrum, hnmr_criterion)   
+    cnmr_indices = spectrum_extraction(cnmr_spectrum, cnmr_criterion)
+    return hnmr_spectrum, cnmr_spectrum, hnmr_indices, cnmr_indices
+
+def point_representation(representation_name: str,
+                         hnmr_spectrum: np.ndarray,
+                         cnmr_spectrum: np.ndarray,
+                         hnmr_indices: np.ndarray,
+                         cnmr_indices: np.ndarray,
+                         hnmr_shifts: np.ndarray = None,
+                         cnmr_shifts: np.ndarray = None,
+                         bins: np.ndarray = None) -> np.ndarray:
+    """Transforms the spectrum into the desired representation for downstream tasks
+    Args:
+        representation_name: The name of the representation to use, currently the following are implemented:
+            'tokenized_indices': Returns the toeknized intensity values at the given indices and the indices themselves for 
+                specific positional encodings
+            'continuous_pair': Returns pairs of (x, y) for the selected points where x is the ppm shift and y is the 
+                intensity value
+        hnmr_spectrum: Numpy array of the HNMR intensities
+        cnmr_spectrum: Numpy array of the CNMR intensities
+        hnmr_indices: Numpy array of selected HNMR indices
+        cnmr_indices: Numpy array of selected CNMR indices
+        eps: Epsilon value for thresholding spectra
+        hnmr_shifts: Array of HNMR shifts. Required for 'continuous_pair' representation
+        cnmr_shifts: Array of CNMR shifts. Required for 'continuous_pair' representation
+        bins: np.ndarray, bin array to use for digitizing spectra
+    """
+    if representation_name == 'tokenized_indices':
+        assert(bins is not None)
+        all_indices = np.concatenate((hnmr_indices, cnmr_indices + 28000))
+        all_intensities = np.concatenate((hnmr_spectrum[hnmr_indices], cnmr_spectrum[cnmr_indices]))
+        tokenized_intensities = np.digitize(all_intensities, bins)
+        return np.vstack((tokenized_intensities, all_indices))
+    elif representation_name == 'continuous_pair':
+        assert((hnmr_shifts is not None) and (cnmr_shifts is not None))
+        selected_hnmr_shifts = hnmr_shifts[hnmr_indices]
+        selected_hnmr_intensities = hnmr_spectrum[hnmr_indices]
+        selected_cnmr_shifts = cnmr_shifts[cnmr_indices]
+        selected_cnmr_intensities = cnmr_spectrum[cnmr_indices]
+        hnmr_pairs = np.vstack((selected_hnmr_shifts, selected_hnmr_intensities)).T
+        cnmr_pairs = np.vstack((selected_cnmr_shifts, selected_cnmr_intensities)).T
+        return np.vstack((hnmr_pairs, cnmr_pairs))
+
+def apply_padding(representation_name: str, 
+                  processed_spectrum: np.ndarray,
+                  padding_value: int,
+                  max_len: int) -> np.ndarray:
+    """Applies padding to the processed spectrum using the given padding value
+    Args:
+        representation_name: The name of the representation to use, consistent with point_representation()
+        processed_spectrum: The processed spectrum to pad
+        padding_value: The value to use for padding
+        max_len: The maximum length to pad to
+    """
+    if representation_name == 'tokenized_indices':
+        return np.pad(
+            processed_spectrum,
+            ((0, 0), (0, max_len - processed_spectrum.shape[1])),
+            'constant',
+            constant_values = (padding_value,)
+        )
+    elif representation_name == 'continuous_pair':
+        return np.vstack((
+            processed_spectrum, np.ones((max_len - processed_spectrum.shape[0], 2)) * padding_value
+        ))
+
+def look_ahead_spectra(spectra: np.ndarray, 
+                       hnmr_criterion: str, 
+                       cnmr_criterion: str,
+                       eps: float) -> int:
+    """Determines the maximum number of peaks for padding"""
+    max_hnmr_len = 0
+    max_cnmr_len = 0
+    for i in range(len(spectra)):
+        _, _, hnmr_indices, cnmr_indices = select_points(threshold_spectra(spectra[i], eps), 
+                                                         hnmr_criterion, 
+                                                         cnmr_criterion)
+        max_hnmr_len = max(max_hnmr_len, len(hnmr_indices)) 
+        max_cnmr_len = max(max_cnmr_len, len(cnmr_indices))
+    #Keep these maximums separate for greater flexibility
+    return max_hnmr_len, max_cnmr_len
 
 class SubstructureRepresentationOneIndexed:
     """Processes binary substructure array to 1-indexed values with 0 padding"""
@@ -107,7 +201,6 @@ class SubstructureRepresentationBinary:
         '''Returns the stop, start, and pad tokens in that order (inputs typically only have pad tokens)'''
         return (self.stop_token, self.start_token, self.pad_token)
 
-# TODO: Finish implementing the rest of the input generators
 class SpectrumRepresentationUnprocessed:
 
     def __init__(self, spectra: np.ndarray,
@@ -133,44 +226,111 @@ class SpectrumRepresentationUnprocessed:
     def get_ctrl_tokens(self) -> tuple[int, int, int]:
         '''Returns the stop, start, and pad tokens in that order (inputs typically only have pad tokens)'''
         return (self.stop_token, self.start_token, self.pad_token)
-    
-class SpectrumRepresentationThresholdTokenized:
 
+class SpectrumRepresentationTokenized:
+    """Selects peaks from the spectrum after thresholding and tokenizes them"""
     def __init__(self, spectra: np.ndarray,
                  labels: np.ndarray,
                  smiles: np.ndarray,
                  tokenizer: BasicSmilesTokenizer,
                  alphabet: np.ndarray,
-                 eps: float):
-        raise NotImplementedError
+                 eps: float,
+                 hnmr_selection: str = 'all_nonzero',
+                 cnmr_selection: str = 'all_nonzero',
+                 nbins: int = 200):
+        
+        self.hnmr_criterion = hnmr_selection
+        self.cnmr_criterion = cnmr_selection
+        self.max_hnmr_len, self.max_cnmr_len = look_ahead_spectra(spectra, self.hnmr_criterion, self.cnmr_criterion)
+        self.max_len = self.max_hnmr_len + self.max_cnmr_len
+        self.eps = eps
+        self.pad_token = 0 
+        self.stop_token = None
+        self.start_token = None
+        self.alphabet_size = nbins + 1
+        self.bins = np.linspace(eps, 1, nbins)
+        self.representation_name = 'tokenized_indices'
+
+    def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
+        spectra = threshold_spectra(spectra, self.eps)
+        hnmr_spectrum, cnmr_spectrum, hnmr_indices, cnmr_indices = select_points(spectra, self.hnmr_criterion, self.cnmr_criterion)
+        processed_spectrum = point_representation(self.representation_name,
+                                                  hnmr_spectrum,
+                                                  cnmr_spectrum,
+                                                  hnmr_indices,
+                                                  cnmr_indices,
+                                                  bins=self.bins)
+        processed_spectrum = apply_padding(self.representation_name, 
+                                           processed_spectrum, 
+                                           self.pad_token, 
+                                           self.max_len)  
+        return processed_spectrum
+
+    def get_size(self) -> int:
+        return self.alphabet_size
+    
+    def get_ctrl_tokens(self) -> tuple[int, int, int]:
+        return (self.stop_token, self.start_token, self.pad_token)
     
 class SpectrumRepresentationThresholdPairs:
-
+    """Selects ALL non-zero peaks from the spectrum after thresholding and represents them as pairs"""
     def __init__(self, spectra: np.ndarray,
                  labels: np.ndarray,
                  smiles: np.ndarray,
                  tokenizer: BasicSmilesTokenizer,
                  alphabet: np.ndarray,
-                 eps: float):
-        raise NotImplementedError
+                 eps: float,
+                 hnmr_selection: str = 'all_nonzero',
+                 cnmr_selection: str = 'all_nonzero',
+                 hnmr_shifts: str = None,
+                 cnmr_shifts: str = None):
+        """
+        Args:
+            
+        """
+        #Handle shift initialization
+        if hnmr_shifts is not None:
+            self.hnmr_shifts = np.load(hnmr_shifts, allow_pickle=True)
+        else:
+            warnings.warn("No HNMR shifts provided, using default values from -2 to 12 ppm")
+            self.hnmr_shifts = np.arange(-2, 12, 0.0005)
+        if cnmr_shifts is not None:
+            self.cnmr_shifts = np.load(cnmr_shifts, allow_pickle=True)
+        else:
+            warnings.warn("No CNMR shifts provided, using default values from -2 to 231 ppm")
+            self.cnmr_shifts = np.linspace(-2, 231, 40)
+        
+        self.hnmr_criterion = hnmr_selection
+        self.cnmr_criterion = cnmr_selection
+        self.max_hnmr_len, self.max_cnmr_len = look_ahead_spectra(spectra, self.hnmr_criterion, self.cnmr_criterion)
+        self.max_len = self.max_hnmr_len + self.max_cnmr_len
+        self.eps = eps
+        self.pad_token = -1000 
+        self.stop_token = None
+        self.start_token = None
+        #Not relevant for this representation
+        self.alphabet_size = self.max_len
+        self.representation_name = 'continuous_pair'
 
-class SpectrumRepresentationThresholdPeaksTokenized:
-    
-    def __init__(self, spectra: np.ndarray,
-                labels: np.ndarray,
-                smiles: np.ndarray,
-                tokenizer: BasicSmilesTokenizer,
-                alphabet: np.ndarray,
-                eps: float):
-        raise NotImplementedError
-    
-class SpectrumRepresentationThresholdPeaksPairs:
+    def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
+        spectra = threshold_spectra(spectra, self.eps)
+        hnmr_spectrum, cnmr_spectrum, hnmr_indices, cnmr_indices = select_points(spectra, 'all_nonzero', 'all_nonzero')
+        processed_spectrum = point_representation(self.representation_name,
+                                                  hnmr_spectrum,
+                                                  cnmr_spectrum,
+                                                  hnmr_indices,
+                                                  cnmr_indices,
+                                                  hnmr_shifts=self.hnmr_shifts,
+                                                  cnmr_shifts=self.cnmr_shifts)
+        processed_spectrum = apply_padding(self.representation_name,
+                                           processed_spectrum,
+                                           self.pad_token,
+                                           self.max_len)
+        return processed_spectrum
 
-    def __init__(self, spectra: np.ndarray,
-                labels: np.ndarray,
-                smiles: np.ndarray,
-                tokenizer: BasicSmilesTokenizer,
-                alphabet: np.ndarray,
-                eps: float):
-        raise NotImplementedError
+    def get_size(self) -> int:
+        return self.alphabet_size
+    
+    def get_ctrl_tokens(self) -> tuple[int, int, int]:
+        return (self.stop_token, self.start_token, self.pad_token)
     
