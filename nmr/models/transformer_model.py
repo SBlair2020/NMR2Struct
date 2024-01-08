@@ -73,8 +73,10 @@ class TransformerModel(nn.Module):
                     for param in getattr(self.network, component).parameters():
                         param.requires_grad = False
     
-    def forward(self, src: Tensor, tgt: Tensor) -> Tensor:
-        return self.network(src, tgt)
+    def forward(self, 
+                x: Tuple[Tensor, Tuple], 
+                y: Tuple[Tensor, Tensor]) -> Tensor:
+        return self.network(x, y)
     
     def get_loss(self,
                  x: Tuple[Tensor, Tuple], 
