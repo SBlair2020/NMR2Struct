@@ -98,8 +98,27 @@ class Transformer(nn.Module):
         mask = mask.masked_fill(mask == 1, float(0.0))
         return mask
     
+    def _sanitize_forward_args(self, 
+                               x: Tuple[Tensor, Tuple],
+                               y: Tuple[Tensor, Tensor]) -> Tuple[Tensor, Tensor, Tensor]:
+        '''Processes raw x, y inputs to the transformer for use in forward()
+        Args:
+            x: Tuple of a tensor (input) and the set of smiles strings (smiles)
+            y: A tuple of a the shifted target tensor and full target tensor
+        '''
+        inp, _ = x
+        shifted_y, _ = y
+        if isinstance(self.src_embed, nn.Embedding):
+            inp = inp.long()
+        if isinstance(self.tgt_embed, nn.Embedding):
+            shifted_y = shifted_y.long()
+        return inp, shifted_y
+    
     #Sketch of what the forward function could look like with more abstraction
-    def forward(self, src: Tensor, tgt: Tensor) -> Tensor:
+    def forward(self, 
+                x: Tuple[Tensor, Tuple], 
+                y: Tuple[Tensor, Tensor]) -> Tensor:
+        src, tgt = self._sanitize_forward_args(x, y)
         tgt_mask = self._get_tgt_mask(tgt.size(1)).to(src.device)
         src_embedded, src_key_pad_mask = self.src_fwd_fn(src, self.d_model, self.src_embed, self.src_pad_token, self.pos_encoder)
         tgt_embedded, tgt_key_pad_mask = self.tgt_fwd_fn(tgt, self.d_model, self.tgt_embed, self.tgt_pad_token, self.pos_encoder)
@@ -123,14 +142,10 @@ class Transformer(nn.Module):
             loss_fn: The loss function to use for the model, with the signature
                 tensor, tensor -> tensor
         """
-        inp, smiles = x
-        shifted_y, full_y = y
-        if isinstance(self.src_embed, nn.Embedding):
-            inp = inp.long()
-        if isinstance(self.tgt_embed, nn.Embedding):
-            shifted_y = shifted_y.long()
-            full_y = full_y.long()
-        pred = self.forward(inp.to(self.device), shifted_y.to(self.device))
+        pred = self.forward(x, y)
         pred = pred.permute(0, 2, 1)
+        _, full_y = y
+        if isinstance(self.tgt_embed, nn.Embedding):
+            full_y = full_y.long()
         loss = loss_fn(pred, full_y.to(self.device))
         return loss

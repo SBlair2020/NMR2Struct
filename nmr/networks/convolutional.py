@@ -118,17 +118,24 @@ class NMRConvNet(nn.Module):
 
         self.out = MultiHeadOutput(n_substructures)
 
+    def _sanitize_forward_args(self, x: Tensor) -> Tensor:
+        """Prepares input for use in forward()
+        Args:
+            x: The input to the model
+        """
+        if len(x.shape) == 2:
+            x = torch.unsqueeze(x, 1)
+        spectral_x = x[:, :, :self.n_spectral_features]
+        cnmr_x = x[:, :, self.n_spectral_features:self.n_spectral_features + self.n_Cfeatures]
+        mol_x = x[:, :, self.n_spectral_features + self.n_Cfeatures:]
+        return spectral_x, cnmr_x, mol_x
+
     def forward(self, x: Tensor) -> Tensor:
         """
         Args:
             x: (batch_size, 1, seq_len)
         """
-        if len(x.shape) == 2:
-            x = torch.unsqueeze(x, 1)
-        # Separate out the features contained within the input vector
-        spectral_x = x[:, :, :self.n_spectral_features]
-        cnmr_x = x[:, :, self.n_spectral_features:self.n_spectral_features + self.n_Cfeatures]
-        mol_x = x[:, :, self.n_spectral_features + self.n_Cfeatures:]
+        spectral_x, cnmr_x, mol_x = self._sanitize_forward_args(x)
 
         spectral_x = self.h1_embed(spectral_x)
 
@@ -164,7 +171,6 @@ class NMRConvNet(nn.Module):
             loss_fn: The loss function to use for the model, with the signature
                 tensor, tensor -> tensor
         """
-        inp, smiles = x
         y_target, = y
-        pred = self.forward(inp.to(self.dtype).to(self.device))
+        pred = self.forward(x)
         return loss_fn(pred, y_target.to(self.dtype).to(self.device))
