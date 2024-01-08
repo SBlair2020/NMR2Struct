@@ -2,18 +2,23 @@ import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 import argparse
 import yaml
 from nmr.data import create_dataset
 from nmr.models import create_model
 from nmr.training import create_optimizer, fit
-import numpy as np
-from typing import Optional, Union
 import h5py
-import random
-import os
 import pickle as pkl
+from .top_level_utils import (
+    seed_everything, 
+    seed_worker, 
+    dtype_convert, 
+    save_completed_config, 
+    split_data_subsets,
+    save_train_history,
+    save_token_size_dict
+)
 
 def get_args() -> dict:
     '''Parses the passed yaml file to get arguments'''
@@ -28,60 +33,7 @@ def get_args() -> dict:
         listdoc['training']
     )
 
-def seed_everything(seed: Union[int, None]) -> int:
-    if seed is None:
-        seed = random.randint(0, 100000)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-
-def seed_worker() -> None:
-    worker_seed = torch.initial_seed() % 2**32
-    np.random.seed(worker_seed)
-    random.seed(worker_seed)
-
-def dtype_convert(dtype: str) -> torch.dtype:
-    '''Maps string to torch dtype'''
-    dtype_dict = {
-        'float32': torch.float,
-        'float64': torch.double,
-        'float16': torch.half
-    }
-    return dtype_dict[dtype]
-
-def save_completed_config(config: dict, savedir: str) -> None:
-    '''Saves the completed config file to the savedir'''
-    with open(f"{savedir}/full_config.yaml", 'w') as f:
-        yaml.dump(config, f, default_flow_style=False)
-
-def split_data_subsets(dataset: Dataset,
-                       splits: Optional[str],
-                       train_size: float = 0.8,
-                       val_size: float = 0.1,
-                       test_size: float = 0.1) -> tuple[Dataset, Dataset, Dataset]:
-    '''Splits the dataset using indices from passed file
-    Args:
-        dataset: The dataset to split
-        splits: The path to the numpy file with the indices for the splits
-        train_size: The fraction of the dataset to use for training
-        val_size: The fraction of the dataset to use for validation
-        test_size: The fraction of the dataset to use for testing
-    '''
-    if splits is not None:
-        print(f"Splitting data using indices from {splits}")
-        split_indices = np.load(splits, allow_pickle = True)
-        train, val, test = split_indices['train'], split_indices['val'], split_indices['test']
-        return torch.utils.data.Subset(dataset, train), torch.utils.data.Subset(dataset, val), \
-            torch.utils.data.Subset(dataset, test)
-    else:
-        assert(train_size + val_size + test_size == 1)
-        print(f"Splitting data using {train_size} train, {val_size} val, {test_size} test")
-        train, val, test = torch.utils.data.random_split(dataset, [train_size, val_size, test_size])
-        return train, val, test
-
-def main():
+def main() -> None:
     # view towards hydra 
     # argparse for now
     # Separate arguments
@@ -147,7 +99,7 @@ def main():
     save_completed_config(tot_config, global_args['savedir'])
 
     # Train
-    print("Beinning training")
+    print("Beginning training")
     losses = fit(model=model,
                 train_dataloader=train_loader,
                 val_dataloader=val_loader,
@@ -165,16 +117,8 @@ def main():
                 prev_epochs=training_args['prev_epochs']
                 )
     
-    train_losses, val_losses, test_losses, model_names, best_losses = losses
-    
-    print("Saving losses")
-    with h5py.File(f"{global_args['savedir']}/losses.h5", "w") as f:
-        f.create_dataset("train_losses", data = train_losses)
-        f.create_dataset("val_losses", data = val_losses)
-        f.create_dataset("test_losses", data = test_losses)
-    
-    with open(f"{global_args['savedir']}/model_names_losses.pkl", "wb") as f:
-        pkl.dump((model_names, best_losses), f)
+    save_train_history(global_args['savedir'], losses)
+    save_token_size_dict(global_args['savedir'], total_dict)
 
 if __name__ == '__main__':
     main()
