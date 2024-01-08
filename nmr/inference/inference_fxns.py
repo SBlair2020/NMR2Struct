@@ -43,7 +43,7 @@ def get_top_k_sample_batched(k_val, character_probabilities):
 def infer_transformer_model(model: nn.Module, 
                         batch: torch.Tensor, 
                         opts: dict,
-                        device: torch.device = None) -> torch.Tensor:
+                        device: torch.device = None) -> list[tuple[str, list[str]]] | list[tuple[np.ndarray, list[np.ndarray]]]:
     """Generates a prediction for the input using sampling over a transformer model
     Args:
         model: The model to use for inference
