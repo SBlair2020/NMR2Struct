@@ -8,6 +8,7 @@ import yaml
 from nmr.data import create_dataset
 from nmr.models import create_model
 from nmr.training import create_optimizer, fit
+import nmr.training.loss_fxns as loss_fxns
 import h5py
 import pickle as pkl
 from .top_level_utils import (
@@ -57,7 +58,7 @@ def main() -> None:
     model, updated_model_args = create_model(model_args, dtype, device, addn_opts = total_dict)
     model.to(dtype).to(device)
     optimizer = create_optimizer(model, model_args, training_args, dtype, device)
-    loss_fn = getattr(nn, training_args['loss_fn'])
+    loss_fn = getattr(loss_fxns, training_args['loss_fn'])
 
     if training_args['loss_fn_args'] is not None:
         loss_fn = loss_fn(**training_args['loss_fn_args'])
