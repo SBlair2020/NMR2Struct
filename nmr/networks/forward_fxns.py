@@ -112,3 +112,14 @@ def src_fwd_fxn_no_embedding_mlp(src: Tensor,
     src_key_pad_mask = (src[:,:,0] == src_pad_token).bool().to(src.device)
     src_embedded = pos_encoder(src, None)
     return src_embedded, src_key_pad_mask
+
+### Forward functions for the combined model ###
+def mod1_x_expand_dim_mod2_xy(model_1: nn.Module,
+                              model_2: nn.Module,
+                              x: tuple[Tensor, tuple[str]],
+                              y: tuple[Tensor, Tensor] | tuple[Tensor]) -> Tensor:
+    _, smiles = x
+    mod1_output = model_1(x)
+    mod1_output = mod1_output.unsqueeze(-1)
+    final_output = model_2((mod1_output, smiles), y)
+    return final_output

@@ -118,11 +118,13 @@ class NMRConvNet(nn.Module):
 
         self.out = MultiHeadOutput(n_substructures)
 
-    def _sanitize_forward_args(self, x: Tensor) -> Tensor:
+    def _sanitize_forward_args(self, x: tuple[Tensor, tuple[str]]) -> Tensor:
         """Prepares input for use in forward()
         Args:
             x: The input to the model
         """
+        #Unpack the tuple
+        x, _ = x
         if len(x.shape) == 2:
             x = torch.unsqueeze(x, 1)
         spectral_x = x[:, :, :self.n_spectral_features]
@@ -130,10 +132,10 @@ class NMRConvNet(nn.Module):
         mol_x = x[:, :, self.n_spectral_features + self.n_Cfeatures:]
         return spectral_x, cnmr_x, mol_x
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: tuple[Tensor, tuple[str]]) -> Tensor:
         """
         Args:
-            x: (batch_size, 1, seq_len)
+            x: ((batch_size, 1, seq_len), smiles)
         """
         spectral_x, cnmr_x, mol_x = self._sanitize_forward_args(x)
 

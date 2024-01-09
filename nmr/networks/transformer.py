@@ -106,6 +106,7 @@ class Transformer(nn.Module):
             x: Tuple of a tensor (input) and the set of smiles strings (smiles)
             y: A tuple of a the shifted target tensor and full target tensor
         '''
+        #Unpack the tuples
         inp, _ = x
         shifted_y, _ = y
         if isinstance(self.src_embed, nn.Embedding):
