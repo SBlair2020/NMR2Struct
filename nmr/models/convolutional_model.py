@@ -43,10 +43,10 @@ class ConvolutionalModel(nn.Module):
                     for param in getattr(self.network, component).parameters():
                         param.requires_grad = False
     
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: tuple[Tensor, tuple[str]]) -> Tensor:
         """
         Args:
-            x: (batch_size, 1, seq_len)
+            x: ((batch_size, 1, seq_len), smiles)
         """
         return self.network(x)
     
