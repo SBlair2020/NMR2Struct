@@ -1,4 +1,4 @@
-from nmr.networks import transformer, forward_fxns, connector
+from nmr.networks import transformer, forward_fxns, embeddings
 import torch
 from torch import nn, Tensor
 from typing import Tuple, Callable, Optional, Any
@@ -35,9 +35,11 @@ class TransformerModel(nn.Module):
         super().__init__()
 
         if src_embed == 'mlp':
-            src_embed_layer = connector.ProbabilityEmbedding(d_model)
+            src_embed_layer = embeddings.ProbabilityEmbedding(d_model)
         elif src_embed == 'matrix_scale':
-            src_embed_layer = connector.MatrixScaleEmbedding(d_model, source_size)
+            src_embed_layer = embeddings.MatrixScaleEmbedding(d_model, source_size)
+        elif src_embed == 'spectra_continuous':
+            src_embed_layer = embeddings.NMRContinuousEmbedding(d_model)
         elif src_embed == 'nn.embed':
             src_embed_layer = nn.Embedding(source_size, d_model, padding_idx = src_pad_token)
         elif src_embed == 'none': 

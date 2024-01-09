@@ -1,4 +1,4 @@
-from nmr.networks import mhanet, forward_fxns
+from nmr.networks import mhanet, forward_fxns, embeddings
 import torch
 from torch import nn, Tensor
 from typing import tuple, Callable, Optional, Any
@@ -22,7 +22,7 @@ class MHANetModel(nn.Module):
                  dtype: torch.dtype = None,
                  freeze_components: Optional[list[str]] = None):
         super().__init__()
-        src_embed_module = getattr(mhanet, src_embed)
+        src_embed_module = getattr(embeddings, src_embed)
         positional_encoding_module = getattr(mhanet, positional_encoding) if positional_encoding is not None else None
         forward_network_module = getattr(mhanet, forward_network)  
         src_forward_function = getattr(forward_fxns, src_forward_function)

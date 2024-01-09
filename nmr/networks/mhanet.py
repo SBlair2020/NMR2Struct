@@ -34,26 +34,6 @@ class PositionalEncoding(nn.Module):
             x = x + self.pe[:, :x.size(1), :]
         return self.dropout(x)
     
-class NMRContinuousEmbedding(nn.Module):
-
-    def __init__(self, d_model: int, num_heads: int = 1):
-        '''
-        For implementation simplicity, only use one head for now,
-            extending to multiple heads is trivial.
-        '''
-        super().__init__()
-        self.heads = nn.ModuleList([
-            nn.Linear(2, d_model // num_heads) for _ in range(num_heads)
-        ])
-    
-    def forward(self, x):
-        '''
-        x: Tensor, shape (batch_size, seq_len, 2)
-        Returns the embedded tensor (batch_size, seq_len, d_model)
-        '''
-        out = [head(x) for head in self.heads]
-        return torch.cat(out, dim = -1)
-    
 class FlattenNNLinear(nn.Module):
 
     def __init__(self, 
