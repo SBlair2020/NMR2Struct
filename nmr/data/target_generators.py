@@ -18,7 +18,31 @@ def look_ahead_substructs(labels: np.ndarray) -> int:
         max_len = max(max_len, np.count_nonzero(labels[i]))
     return max_len + 1
 
-class SMILESRepresentationTokenized:
+#Abstract base class for input generators, to be inherited by others
+class TargetGeneratorBase:
+    #Getters have concrete implementations, but constructor and transform are not implemented
+    def __init__(self,
+                 spectra: np.ndarray,
+                 labels: np.ndarray,
+                 smiles: np.ndarray,
+                 tokenizer: BasicSmilesTokenizer,
+                 alphabet: np.ndarray,
+                 eps: float):
+        pass
+
+    def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
+        pass
+
+    def get_size(self) -> int:
+        return self.alphabet_size
+    
+    def get_ctrl_tokens(self) -> tuple[int, int, int]:
+        return (self.stop_token, self.start_token, self.pad_token)
+    
+    def get_max_seq_len(self) -> int:
+        return self.max_len
+
+class SMILESRepresentationTokenized(TargetGeneratorBase):
     """Processes SMILES strings into tokenized arrays with padding"""
     def __init__(self, 
                  spectra: np.ndarray,
@@ -61,15 +85,7 @@ class SMILESRepresentationTokenized:
                             constant_values = (self.pad_token,))
         return shifted_seq, full_seq
     
-    def get_size(self) -> int:
-        '''Returns the size of the target alphabet'''
-        return self.alphabet_size
-    
-    def get_ctrl_tokens(self) -> tuple[int, int, int]:
-        '''Returns the stop, start, and pad tokens in that order'''
-        return (self.stop_token, self.start_token, self.pad_token)
-    
-class SubstructureRepresentationBinary:
+class SubstructureRepresentationBinary(TargetGeneratorBase):
     """Processes binary substructure representation, augmented with start and stop tokens"""
     def __init__(self, 
                  spectra: np.ndarray,
@@ -107,15 +123,7 @@ class SubstructureRepresentationBinary:
         assert(shifted_seq.shape == full_seq.shape)
         return shifted_seq, full_seq
     
-    def get_size(self) -> int:
-        '''Returns the size of the target alphabet'''
-        return self.alphabet_size
-    
-    def get_ctrl_tokens(self) -> tuple[int, int, int]:
-        '''Returns the stop, start, and pad tokens in that order'''
-        return (self.stop_token, self.start_token, self.pad_token)
-    
-class SubstructureRepresentationUnprocessed:
+class SubstructureRepresentationUnprocessed(TargetGeneratorBase):
 
     def __init__(self, 
                  spectra: np.ndarray,
@@ -143,15 +151,7 @@ class SubstructureRepresentationUnprocessed:
         """Transforms the input binary substructure array into tuple of arrays with stop and start tokens"""
         return (substructures,)
     
-    def get_size(self) -> int:
-        '''Returns the size of the target alphabet'''
-        return self.alphabet_size
-    
-    def get_ctrl_tokens(self) -> tuple[int, int, int]:
-        '''Returns the stop, start, and pad tokens in that order'''
-        return (self.stop_token, self.start_token, self.pad_token)
-    
-class SubstructureRepresentationOneIndexed:
+class SubstructureRepresentationOneIndexed(TargetGeneratorBase):
     """Processes binary substructures into 1-indexed arrays with padding and ctrl tokens"""
     def __init__(self, 
                  spectra: np.ndarray,
@@ -199,11 +199,3 @@ class SubstructureRepresentationOneIndexed:
                             'constant',
                             constant_values = (self.pad_token,))
         return shifted_seq, full_seq
-    
-    def get_size(self) -> int:
-        '''Returns the size of the target alphabet'''
-        return self.alphabet_size
-    
-    def get_ctrl_tokens(self) -> tuple[int, int, int]:
-        '''Returns the stop, start, and pad tokens in that order'''
-        return (self.stop_token, self.start_token, self.pad_token)

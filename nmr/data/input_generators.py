@@ -1,6 +1,5 @@
 import numpy as np
 from .tokenizer import BasicSmilesTokenizer
-from typing import Tuple
 from scipy.signal import find_peaks
 import warnings
 
@@ -112,7 +111,31 @@ def look_ahead_spectra(spectra: np.ndarray,
     #Keep these maximums separate for greater flexibility
     return max_hnmr_len, max_cnmr_len
 
-class SubstructureRepresentationOneIndexed:
+#Abstract base class for input generators, to be inherited by others
+class InputGeneratorBase:
+    #Getters have concrete implementations, but constructor and transform are not implemented
+    def __init__(self,
+                 spectra: np.ndarray,
+                 labels: np.ndarray,
+                 smiles: np.ndarray,
+                 tokenizer: BasicSmilesTokenizer,
+                 alphabet: np.ndarray,
+                 eps: float):
+        pass
+
+    def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
+        pass
+
+    def get_size(self) -> int:
+        return self.alphabet_size
+    
+    def get_ctrl_tokens(self) -> tuple[int, int, int]:
+        return (self.stop_token, self.start_token, self.pad_token)
+    
+    def get_max_seq_len(self) -> int:
+        return self.max_len
+
+class SubstructureRepresentationOneIndexed(InputGeneratorBase):
     """Processes binary substructure array to 1-indexed values with 0 padding"""
     def __init__(self, 
                  spectra: np.ndarray,
@@ -154,15 +177,7 @@ class SubstructureRepresentationOneIndexed:
                         constant_values = (self.pad_token,))
         return padded
     
-    def get_size(self) -> int:
-        '''Returns the size of the input alphabet'''
-        return self.alphabet_size
-    
-    def get_ctrl_tokens(self) -> tuple[int, int, int]:
-        '''Returns the stop, start, and pad tokens in that order (inputs typically only have pad tokens)'''
-        return (self.stop_token, self.start_token, self.pad_token)
-    
-class SubstructureRepresentationBinary:
+class SubstructureRepresentationBinary(InputGeneratorBase):
     """Dummy class for binary substructure representation and interface consistency"""
     def __init__(self, 
                  spectra: np.ndarray,
@@ -191,16 +206,8 @@ class SubstructureRepresentationBinary:
         """Returns the substructure array"""
         #We expand here because for substructure to structure, the transformer expects a 3D input
         return np.expand_dims(substructures, axis = -1)
-    
-    def get_size(self) -> int:
-        '''Returns the size of the input alphabet'''
-        return self.alphabet_size
-    
-    def get_ctrl_tokens(self) -> tuple[int, int, int]:
-        '''Returns the stop, start, and pad tokens in that order (inputs typically only have pad tokens)'''
-        return (self.stop_token, self.start_token, self.pad_token)
 
-class SpectrumRepresentationUnprocessed:
+class SpectrumRepresentationUnprocessed(InputGeneratorBase):
 
     def __init__(self, 
                  spectra: np.ndarray,
@@ -227,16 +234,8 @@ class SpectrumRepresentationUnprocessed:
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
         """Returns the spectra array"""
         return spectra
-    
-    def get_size(self) -> int:
-        '''Returns the size of the input alphabet'''
-        return self.alphabet_size
-    
-    def get_ctrl_tokens(self) -> tuple[int, int, int]:
-        '''Returns the stop, start, and pad tokens in that order (inputs typically only have pad tokens)'''
-        return (self.stop_token, self.start_token, self.pad_token)
 
-class SpectrumRepresentationThresholdTokenized:
+class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
     """Selects peaks from the spectrum after thresholding and tokenizes them"""
     def __init__(self, 
                  spectra: np.ndarray,
@@ -297,14 +296,8 @@ class SpectrumRepresentationThresholdTokenized:
                                            self.pad_token, 
                                            self.max_len)  
         return processed_spectrum
-
-    def get_size(self) -> int:
-        return self.alphabet_size
     
-    def get_ctrl_tokens(self) -> tuple[int, int, int]:
-        return (self.stop_token, self.start_token, self.pad_token)
-    
-class SpectrumRepresentationThresholdPairs:
+class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
     """Selects ALL non-zero peaks from the spectrum after thresholding and represents them as pairs"""
     def __init__(self, spectra: np.ndarray,
                  labels: np.ndarray,
@@ -379,10 +372,4 @@ class SpectrumRepresentationThresholdPairs:
                                            self.pad_token,
                                            self.max_len)
         return processed_spectrum
-
-    def get_size(self) -> int:
-        return self.alphabet_size
-    
-    def get_ctrl_tokens(self) -> tuple[int, int, int]:
-        return (self.stop_token, self.start_token, self.pad_token)
     
