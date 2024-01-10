@@ -18,7 +18,8 @@ from .top_level_utils import (
     save_completed_config, 
     split_data_subsets,
     save_train_history,
-    save_token_size_dict
+    save_token_size_dict,
+    specific_update
 )
 
 def get_args() -> dict:
@@ -54,9 +55,28 @@ def main() -> None:
     size_dict = dataset.get_sizes()
     token_dict = dataset.get_ctrl_tokens()
     total_dict = {**size_dict, **token_dict}
+    #Fix target pad token as ignore index
+    tgt_pad_token = total_dict['tgt_pad_token']
+    total_dict['ignore_index'] = tgt_pad_token if tgt_pad_token is not None else -100
     print(total_dict)
-    model, updated_model_args = create_model(model_args, dtype, device, addn_opts = total_dict)
+
+    #Update model args
+    model_args = specific_update(model_args, total_dict)
+    #Update training args
+    training_args = specific_update(training_args, total_dict)
+
+    print(f"Max sequence lengths: {dataset.get_max_seq_len()}")
+
+    model, updated_model_args = create_model(model_args, dtype, device)
     model.to(dtype).to(device)
+
+    print("Initializing model parameters with Xavier uniform")
+    for param in model.parameters():
+        if param.dim() > 1:
+            nn.init.xavier_uniform_(param)
+    
+    print("Total number of trainable parameters", sum(p.numel() for p in model.parameters() if p.requires_grad))
+
     optimizer = create_optimizer(model, model_args, training_args, dtype, device)
     loss_fn = getattr(loss_fxns, training_args['loss_fn'])
 
@@ -64,6 +84,9 @@ def main() -> None:
         loss_fn = loss_fn(**training_args['loss_fn_args'])
     else:
         loss_fn = loss_fn()
+    
+    if hasattr(loss_fn, 'ignore_index'):
+        print(f"Setting ignore index for loss function to {loss_fn.ignore_index}")
 
     if training_args['scheduler'] is not None:
         scheduler_raw = getattr(optim.lr_scheduler, training_args['scheduler'])
