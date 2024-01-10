@@ -2,7 +2,7 @@ import numpy as np
 import random
 import torch
 import yaml
-from typing import Union, Optional
+from typing import Union, Optional, Any
 from torch.utils.data import Dataset
 import os
 import h5py
@@ -182,3 +182,14 @@ def save_token_size_dict(savedir: str,
                          token_size_dict: dict) -> None:
     with open(f"{savedir}/token_size_dict.pkl", "wb") as f:
         pkl.dump(token_size_dict, f)
+
+def specific_update(mapping: dict[str, Any], update_map: dict[str, Any]) -> dict[str, Any]:
+    """Recursively update keys in a mapping with the values specified in update_map"""
+    mapping = mapping.copy()
+    for k, v in mapping.items():
+        #Give precedence to existing parameter settings
+        if (k in update_map) and (not isinstance(v, dict)) and (v is None):
+            mapping[k] = update_map[k]
+        elif isinstance(v, dict):
+            mapping[k] = specific_update(v, update_map)
+    return mapping
