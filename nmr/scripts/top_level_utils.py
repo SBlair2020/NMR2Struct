@@ -32,9 +32,11 @@ def dtype_convert(dtype: str) -> torch.dtype:
     }
     return dtype_dict[dtype]
 
-def save_completed_config(config: dict, savedir: str) -> None:
+def save_completed_config(savename: str, config: dict, savedir: str) -> None:
     '''Saves the completed config file to the savedir'''
-    with open(f"{savedir}/full_config.yaml", 'w') as f:
+    if not savename.endswith('.yaml'):
+        savename = savename + '.yaml'
+    with open(f"{savedir}/{savename}", 'w') as f:
         yaml.dump(config, f, default_flow_style=False)
 
 def split_data_subsets(dataset: Dataset,
@@ -193,3 +195,21 @@ def specific_update(mapping: dict[str, Any], update_map: dict[str, Any]) -> dict
         elif isinstance(v, dict):
             mapping[k] = specific_update(v, update_map)
     return mapping
+
+def select_model(savedir: str,
+                 crtierion: str) -> str:
+    '''Selects the saved model checkpoints based on the criterion
+    
+    Args:
+        savedir: Directory where model checkpoints are saved
+        critierion: Either 'lowest' or 'highest' loss
+    '''
+    with open(f"{savedir}/model_names_losses.pkl", "rb") as f:
+        model_names, best_losses = pkl.load(f)
+    if crtierion == 'lowest':
+        idx = np.argmin(best_losses)
+    elif crtierion == 'highest':
+        idx = np.argmax(best_losses)
+    else:
+        raise ValueError("Criterion not supported")
+    return model_names[idx]

@@ -11,7 +11,10 @@ from .top_level_utils import (
     dtype_convert,
     split_data_subsets,
     save_inference_predictions,
-    save_token_size_dict
+    save_token_size_dict,
+    specific_update,
+    select_model,
+    save_completed_config
 )
 from accelerate import Accelerator
 from typing import Any
@@ -31,23 +34,12 @@ def get_args() -> dict:
         listdoc['inference']
     )
 
-def specific_update(mapping: dict[str, Any], update_map: dict[str, Any]) -> dict[str, Any]:
-    """Recursively update keys in a mapping with the values specified in update_map"""
-    mapping = mapping.copy()
-    for k, v in mapping.items():
-        #Give precedence to existing parameter settings
-        if (k in update_map) and (not isinstance(v, dict)) and (v is None):
-            mapping[k] = update_map[k]
-        elif isinstance(v, dict):
-            mapping[k] = specific_update(v, update_map)
-    return mapping
-
 def main() -> None:
-    accelerator = Accelerator()
-    _ = seed_everything(global_args['seed'])
-
     print("Parsing arguments...")
     global_args, dataset_args, model_args, inference_args = get_args()
+
+    accelerator = Accelerator()
+    _ = seed_everything(global_args['seed'])
 
     dtype = dtype_convert(global_args['dtype'])
     device = accelerator.device
@@ -57,10 +49,25 @@ def main() -> None:
     token_dict = dataset.get_ctrl_tokens()
     total_dict = {**size_dict, **token_dict}
     inference_args = specific_update(inference_args, total_dict)
+    model_args = specific_update(model_args, total_dict)
 
-    model, updated_model_args = create_model(model_args, dtype, device, addn_opts = total_dict)
-    #At this point, the correct model checkpoint has been loaded
+    model, updated_model_args = create_model(model_args, dtype, device)
     model.to(dtype).to(device)
+
+    #Find and load the best model checkpoint
+    mod_ckpt_name = select_model(global_args['savedir'],
+                                 inference_args['model_selection'])
+    print(f"Using the model checkpoint {mod_ckpt_name}")
+    best_model_ckpt = torch.load(mod_ckpt_name, map_location = device)
+    model.load_state_dict(best_model_ckpt['model_state_dict'])
+
+    tot_config = {
+        'global_args' : global_args,
+        'data' : updated_dataset_args,
+        'model' : updated_model_args,
+        'inference' : inference_args
+    }
+    save_completed_config('full_inference_config.yaml', tot_config, global_args['savedir'])
 
     #Set up dataloaders
     train_set, val_set, test_set = split_data_subsets(dataset, 
@@ -95,7 +102,7 @@ def main() -> None:
     if ('train' in inference_args['sets_to_run']):
         train_predictions = run_inference(model,
                                         train_loader,
-                                        device=device 
+                                        device=device, 
                                         **inference_args['run_inference_args']
                                         )
     else:

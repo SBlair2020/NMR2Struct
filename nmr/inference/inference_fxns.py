@@ -70,10 +70,10 @@ def infer_transformer_model(model: nn.Module,
     
     num_pred_per_tgt = opts['num_pred_per_tgt']
     sample_val = opts['sample_val']
-    stop_token = opts['stop_token']
-    start_token = opts['start_token']
+    stop_token = opts['tgt_stop_token']
+    start_token = opts['tgt_start_token']
     track_gradients = opts['track_gradients']
-    alphabet = opts['alphabet']
+    alphabet = np.load(opts['alphabet'], allow_pickle=True)
     decode = opts['decode']
 
     for _ in range(num_pred_per_tgt):
@@ -118,16 +118,19 @@ def infer_transformer_model(model: nn.Module,
             if len(working_y) == 0:
                 all_structures_completed = True
             iter_counter += 1
-        
-        assert(None not in completed_structures)
+        for elem in completed_structures:
+            assert(elem is not None)
         if decode:
-            generated_smiles = [''.join(np.array(alphabet)[elem[1:-1].long()]) for elem in completed_structures]
+            generated_smiles = [''.join(np.array(alphabet)[elem[1:-1].astype(int)]) for elem in completed_structures]
             curr_batch_predictions.append(generated_smiles)
         else:
             curr_batch_predictions.append(completed_structures)
         
     #Final processing
-    assert(targets.shape[0] == len(curr_batch_predictions) == effective_bsize)
+    # print(targets.shape[0])
+    # print(len(curr_batch_predictions))
+    # print(effective_bsize)
+    assert(targets.shape[0] == len(curr_batch_predictions[0]) == effective_bsize)
     generated_predictions = []
     for i in range(effective_bsize):
         #TODO: Think, is this the best way to represent output predictions for each batch as 

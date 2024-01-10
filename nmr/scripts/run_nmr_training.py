@@ -120,7 +120,7 @@ def main() -> None:
         'model' : updated_model_args,
         'training' : training_args
     }
-    save_completed_config(tot_config, global_args['savedir'])
+    save_completed_config('full_train_config.yaml', tot_config, global_args['savedir'])
 
     # Train
     print("Beginning training")
