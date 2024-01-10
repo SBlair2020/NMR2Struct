@@ -146,6 +146,7 @@ class SubstructureRepresentationUnprocessed(TargetGeneratorBase):
         self.start_token = None
         self.stop_token = None
         self.alphabet_size = 957
+        self.max_len = 957
     
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Transforms the input binary substructure array into tuple of arrays with stop and start tokens"""

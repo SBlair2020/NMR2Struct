@@ -22,6 +22,8 @@ def spectrum_extraction(spectrum: np.ndarray, criterion: str) -> np.ndarray:
         indices = np.where(spectrum > 0)[0]
     elif criterion == 'find_peaks':
         indices, _ = find_peaks(spectrum)
+    elif criterion == 'binary':
+        indices = np.where(spectrum == 1)[0]
     else:
         raise ValueError("Invalid criterion for spectrum extraction")
     return indices
@@ -100,16 +102,19 @@ def look_ahead_spectra(spectra: np.ndarray,
                        cnmr_criterion: str,
                        eps: float) -> int:
     """Determines the maximum number of peaks for padding"""
-    max_hnmr_len = 0
-    max_cnmr_len = 0
+    max_hnmr_len = -1
+    max_cnmr_len = -1
+    max_tot_len = -1
     for i in range(len(spectra)):
         _, _, hnmr_indices, cnmr_indices = select_points(threshold_spectra(spectra[i], eps), 
                                                          hnmr_criterion, 
                                                          cnmr_criterion)
         max_hnmr_len = max(max_hnmr_len, len(hnmr_indices)) 
         max_cnmr_len = max(max_cnmr_len, len(cnmr_indices))
+        tot_len = len(hnmr_indices) + len(cnmr_indices)
+        max_tot_len = max(max_tot_len, tot_len)
     #Keep these maximums separate for greater flexibility
-    return max_hnmr_len, max_cnmr_len
+    return max_hnmr_len, max_cnmr_len, max_tot_len
 
 #Abstract base class for input generators, to be inherited by others
 class InputGeneratorBase:
@@ -201,6 +206,7 @@ class SubstructureRepresentationBinary(InputGeneratorBase):
         self.pad_token = None
         self.stop_token = None
         self.start_token = None
+        self.max_len = 957
 
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
         """Returns the substructure array"""
@@ -230,6 +236,7 @@ class SpectrumRepresentationUnprocessed(InputGeneratorBase):
         self.stop_token = None
         self.start_token = None
         self.alphabet_size = 28045
+        self.max_len = 28040
     
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
         """Returns the spectra array"""
@@ -272,9 +279,8 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
         
         self.hnmr_criterion = hnmr_selection
         self.cnmr_criterion = cnmr_selection
-        self.max_hnmr_len, self.max_cnmr_len = look_ahead_spectra(spectra, self.hnmr_criterion, self.cnmr_criterion)
-        self.max_len = self.max_hnmr_len + self.max_cnmr_len
         self.eps = eps
+        self.max_hnmr_len, self.max_cnmr_len, self.max_len = look_ahead_spectra(spectra, self.hnmr_criterion, self.cnmr_criterion, self.eps)
         self.pad_token = 0 
         self.stop_token = None
         self.start_token = None
@@ -347,9 +353,8 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
         
         self.hnmr_criterion = hnmr_selection
         self.cnmr_criterion = cnmr_selection
-        self.max_hnmr_len, self.max_cnmr_len = look_ahead_spectra(spectra, self.hnmr_criterion, self.cnmr_criterion)
-        self.max_len = self.max_hnmr_len + self.max_cnmr_len
         self.eps = eps
+        self.max_hnmr_len, self.max_cnmr_len, self.max_len = look_ahead_spectra(spectra, self.hnmr_criterion, self.cnmr_criterion, self.eps)
         self.pad_token = -1000 
         self.stop_token = None
         self.start_token = None

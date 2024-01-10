@@ -115,3 +115,9 @@ class NMRDataset(Dataset):
             'tgt_pad_token'   : tgt_pad_token
         }
         return token_dict
+    
+    def get_max_seq_len(self) -> dict[str, int]:
+        """Returns the max sequence length for the input and target as dicts"""
+        input_len = self.input_generator.get_max_seq_len()
+        target_len = self.target_generator.get_max_seq_len()
+        return {'max_src_len' : input_len, 'max_tgt_len' : target_len}
