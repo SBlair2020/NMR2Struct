@@ -18,9 +18,9 @@ class MHANetModel(nn.Module):
                  d_feedforward: int, 
                  n_heads: int, 
                  max_seq_len: int,
+                 freeze_components: Optional[list[str]] = None,
                  device: torch.device = None,
-                 dtype: torch.dtype = None,
-                 freeze_components: Optional[list[str]] = None):
+                 dtype: torch.dtype = None):
         super().__init__()
         src_embed_module = getattr(embeddings, src_embed)
         positional_encoding_module = getattr(mhanet, positional_encoding) if positional_encoding is not None else None
@@ -41,7 +41,19 @@ class MHANetModel(nn.Module):
             device,
             dtype
         )
+
+        self.initialize_weights()
+        self.device = device
+        self.dtype = dtype
         self.freeze_components = freeze_components
+
+    def initialize_weights(self) -> None:
+        """initialize network weights
+        Non-1D parameters are initialized using Xavier initialization
+        """
+        for p in self.network.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
 
     def freeze(self) -> None:
         """Disables gradients for specific components of the network

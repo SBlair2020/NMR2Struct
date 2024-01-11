@@ -8,9 +8,13 @@ class CombinedModel(nn.Module):
     """Example model wrapper for the combined model"""
     model_id = 'combined'
 
-    def __init__(self, model_1: str, model_2: str, 
-                 model_1_args: dict, model_2_args: dict,
+    def __init__(self, model_1: str, 
+                 model_2: str, 
+                 model_1_args: dict, 
+                 model_2_args: dict,
                  forward_fxn: Callable,
+                 model_1_ckpt: str = None, 
+                 model_2_ckpt: str = None,
                  device: torch.device = None, 
                  dtype: torch.dtype = torch.float):
         """Constructor for combined model built from two sub models
@@ -21,8 +25,8 @@ class CombinedModel(nn.Module):
             model_1_args: The kwargs for the first sub model constructor
             model_2_args: The kwargs for the second sub model constructor
             forward_fxn: A function which takes two models, the input x, y, and returns the output
-            model_1_freeze_components: List of component names to freeze for model_1
-            model_2_freeze_components: List of component names to freeze for model_2
+            model_1_ckpt: The checkpoint to load for model 1
+            model_2_ckpt: The checkpoint to load for model 2
             device: Model device. Default is None
             dtype: Model datatype. Default is torch.float
         """
@@ -34,6 +38,17 @@ class CombinedModel(nn.Module):
             **model_2_args
         )
         self.fwd_fn = getattr(forward_fxns, forward_fxn)
+        self.device = device
+        self.dtype = dtype
+        self.initialize_weights()
+        #Initialize the weights for each sub checkpoint if not loading the 
+        #   overall model state dictionary
+        if model_1_ckpt is not None:
+            ckpt = torch.load(model_1_ckpt, map_location=device)
+            self.model_1.load_state_dict(ckpt['model_state_dict'])
+        if model_2_ckpt is not None:
+            ckpt = torch.load(model_2_ckpt, map_location=device)
+            self.model_2.load_state_dict(ckpt['model_state_dict'])
     
     def initialize_weights(self) -> None:
         """initialize network weights"""

@@ -6,15 +6,29 @@ from typing import Tuple, Callable, Optional, Any
 class TransformerModel(nn.Module):
     """ Example model wrapper for transformer network """
 
-    def __init__(self, src_embed: str, tgt_embed: str, 
-                 src_pad_token: int, tgt_pad_token: int,
-                 src_forward_function: str, tgt_forward_function: str, 
+    def __init__(self, src_embed: str, 
+                 tgt_embed: str, 
+                 src_pad_token: int, 
+                 tgt_pad_token: int,
+                 src_forward_function: str, 
+                 tgt_forward_function: str, 
                  freeze_components: Optional[list] = None,
-                 d_model: int = 512, nhead: int = 8, num_encoder_layers: int = 6, num_decoder_layers: int = 6,
-                 dim_feedforward: int = 2048, dropout: float = 0.1, activation: str = 'relu', custom_encoder: Optional[Any] = None,
-                 custom_decoder: Optional[Any] = None, target_size: int = 50, source_size: int = 957,
-                 layer_norm_eps: float = 1e-05, batch_first: bool = True, norm_first: bool = False, 
-                 device: torch.device = None, dtype: torch.dtype = torch.float):
+                 d_model: int = 512, 
+                 nhead: int = 8, 
+                 num_encoder_layers: int = 6, 
+                 num_decoder_layers: int = 6,
+                 dim_feedforward: int = 2048, 
+                 dropout: float = 0.1, 
+                 activation: str = 'relu', 
+                 custom_encoder: Optional[Any] = None,
+                 custom_decoder: Optional[Any] = None, 
+                 target_size: int = 50, 
+                 source_size: int = 957,
+                 layer_norm_eps: float = 1e-05, 
+                 batch_first: bool = True, 
+                 norm_first: bool = False, 
+                 device: torch.device = None, 
+                 dtype: torch.dtype = torch.float):
         r"""Most parameters are standard for the PyTorch transformer class. A few specific ones that have been added:
 
         src_embed: The name of the embedding module for the src tensor passed to the model
@@ -58,8 +72,10 @@ class TransformerModel(nn.Module):
                                                 dim_feedforward, dropout, activation, custom_encoder,
                                                 custom_decoder, target_size, source_size,
                                                 layer_norm_eps, batch_first, norm_first, device, dtype)
-        
+        self.initialize_weights()
         self.freeze_components = freeze_components
+        self.device = device
+        self.dtype = dtype
 
     def initialize_weights(self) -> None:
         """Initializes network weights

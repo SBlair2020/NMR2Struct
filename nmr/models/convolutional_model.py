@@ -6,9 +6,14 @@ from typing import Tuple, Callable, Optional
 class ConvolutionalModel(nn.Module):
     """ Example model wrapper for convolutional network """
 
-    def __init__(self, n_spectral_features: int, n_Cfeatures: int, n_molfeatures: int, n_substructures: int,
+    def __init__(self, 
+                 n_spectral_features: int, 
+                 n_Cfeatures: int, 
+                 n_molfeatures: int, 
+                 n_substructures: int,
                  freeze_components: Optional[list] = None,
-                 device: torch.device = None, dtype: torch.dtype = torch.float):
+                 device: torch.device = None, 
+                 dtype: torch.dtype = torch.float):
         """Constructor for convolutional network model using the NMRConvNet from networks
         Args:
             n_spectral_features: The number of spectral features, i.e. 28000
@@ -27,7 +32,10 @@ class ConvolutionalModel(nn.Module):
                                                 n_substructures,
                                                 dtype,
                                                 device)
+        self.initialize_weights()
         self.freeze_components = freeze_components
+        self.device = device
+        self.dtype = dtype
 
     def initialize_weights(self) -> None:
         """initialize network weights
