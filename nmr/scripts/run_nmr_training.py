@@ -69,11 +69,6 @@ def main() -> None:
 
     model, updated_model_args = create_model(model_args, dtype, device)
     model.to(dtype).to(device)
-
-    print("Initializing model parameters with Xavier uniform")
-    for param in model.parameters():
-        if param.dim() > 1:
-            nn.init.xavier_uniform_(param)
     
     print("Total number of trainable parameters", sum(p.numel() for p in model.parameters() if p.requires_grad))
 
