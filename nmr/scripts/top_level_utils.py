@@ -8,6 +8,7 @@ import os
 import h5py
 import pickle as pkl
 from functools import reduce
+import math
 
 def seed_everything(seed: Union[int, None]) -> int:
     if seed is None:
@@ -63,6 +64,21 @@ def split_data_subsets(dataset: Dataset,
         print(f"Splitting data using {train_size} train, {val_size} val, {test_size} test")
         train, val, test = torch.utils.data.random_split(dataset, [train_size, val_size, test_size])
         return train, val, test
+    
+def divide_parallel_subsets(dataset: Dataset,
+                            n_procs: int,
+                            local_rank: int) -> Dataset:
+    '''Takes a subset of the given dataset such that it is a subset that does not overlap with other n_proc - 1 subsets
+    
+    Note: Use math.ceil to ensure that the final process always gets the remainder of the dataset
+    '''
+    assert(local_rank < n_procs)
+    n_samples = len(dataset)
+    subset_size = math.ceil(n_samples / n_procs)
+    start, end = local_rank * subset_size, (local_rank + 1) * subset_size
+    if end > n_samples:
+        end = n_samples
+    return torch.utils.data.Subset(dataset, range(start, end))
     
 def save_train_history(savedir: str, loss_obj: tuple[list, ...]) -> None:
     """Saves the training history of the model to the specified directory
@@ -135,22 +151,24 @@ def save_array_set(h5ptr: h5py.File,
 
     padding is done on these arrays to ensure size consistency when saving to hdf5
     """
-    targets = [elem[0] for elem in preds]
-    targets = np.array(targets)
-    predictions = [elem[1] for elem in preds]
-    max_len = find_max_length(predictions)
-    pad_token = 999_999
-    predictions = [pad_single_prediction(elem, max_len, pad_token) for elem in predictions]
-    predictions = np.array(predictions)
     group = h5ptr.create_group(savename)
+    targets = [elem[0] for elem in preds]
+    targets = np.concatenate(targets)
+    predictions = [elem[1] for elem in preds]
+    if isinstance(predictions[0], list):
+        max_len = find_max_length(predictions)
+        pad_token = 999_999
+        predictions = [pad_single_prediction(elem, max_len, pad_token) for elem in predictions]
+        group.create_dataset("additional_pad_token", data = pad_token)
+    predictions = np.concatenate(predictions)
     group.create_dataset("targets", data = targets)
     group.create_dataset("predictions", data = predictions)
-    group.create_dataset("additional_pad_token", data = pad_token)
 
 def save_inference_predictions(savedir: str,
                                train_predictions: list,
                                val_predictions: list,
-                               test_predictions: list) -> None:
+                               test_predictions: list, 
+                               idx: int = None) -> None:
     '''Saves the predictions from inference as h5 files in the specified directory
 
     Args:
@@ -158,6 +176,7 @@ def save_inference_predictions(savedir: str,
         train_predictions: The list of train predictions
         val_predictions: The list of validation predictions
         test_predictions: The list of test predictions
+        idx: The index to distinguish the predictions from different parallel runs
 
     The formatting for the h5py file changes depending on the form of the predictions. 
     However, at the top level, the following are exposed: 'train', 'val', and 'test'. Depending
@@ -166,9 +185,10 @@ def save_inference_predictions(savedir: str,
     .
     '''    
     print("Saving predictions...")
-    test_element = train_predictions[0]
+    test_element = test_predictions[0]
     assert(isinstance(test_element, tuple))
-    with open(f"{savedir}/predictions.h5", 'w') as f:    
+    filehandle = f"{savedir}/predictions.h5" if idx is None else f"{savedir}/predictions_{idx}.h5"
+    with h5py.File(filehandle, 'w') as f:    
         if isinstance(test_element[0], str):
             save_fxn = save_str_set
         elif isinstance(test_element[0], np.ndarray):   

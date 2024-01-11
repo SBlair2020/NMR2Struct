@@ -2,9 +2,10 @@ import torch
 import torch.nn as nn
 from typing import Optional
 import numpy as np
+from torch import Tensor
 
 def infer_basic_model(model: nn.Module, 
-                      input: torch.Tensor, 
+                      batch: torch.Tensor, 
                       opts: Optional[dict] = None,
                       device: torch.device = None) -> torch.Tensor:
     """Generate prediction for models that take an input and generate the output in one forward pass
@@ -13,10 +14,16 @@ def infer_basic_model(model: nn.Module,
         input: The input to the model
         opts: Options to pass to the model as a dictionary, can be empty here
     """
+    x, y = batch
+    input = x[0]
+    target = y[0]
     with torch.no_grad():
-        return model(input)
+        output = model(x)
+    return [(target.detach().cpu().numpy(), 
+             output.detach().cpu().numpy())]
 
-def get_top_k_sample_batched(k_val, character_probabilities):
+def get_top_k_sample_batched(k_val: int | float , 
+                             character_probabilities: Tensor) -> Tensor:
     """
     Generates the next character using top-k sampling scheme.
 

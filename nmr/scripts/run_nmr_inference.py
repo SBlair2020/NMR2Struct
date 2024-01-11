@@ -14,9 +14,9 @@ from .top_level_utils import (
     save_token_size_dict,
     specific_update,
     select_model,
-    save_completed_config
+    save_completed_config,
+    divide_parallel_subsets
 )
-from accelerate import Accelerator
 from typing import Any
 
 #Necessary functions for distributed data parallel inference
@@ -25,6 +25,9 @@ def get_args() -> dict:
     '''Parses the passed yaml file to get arguments'''
     parser = argparse.ArgumentParser(description='Run NMR inference')
     parser.add_argument('config_file', type = str, help = 'The path to the YAML configuration file')
+    parser.add_argument('local_rank', type = int, help = 'The local rank of this process')
+    parser.add_argument('gpu_id', type = int, help = 'The GPU ID to use for this process')
+    parser.add_argument('n_procs', type = int, help = 'The total number of concurrent processes running')
     args = parser.parse_args()
     listdoc =  yaml.safe_load(open(args.config_file, 'r'))
     return (
@@ -32,17 +35,18 @@ def get_args() -> dict:
         listdoc['data'],
         listdoc['model'],
         listdoc['inference']
-    )
+    ), (args.local_rank, args.gpu_id, args.n_procs)
 
 def main() -> None:
     print("Parsing arguments...")
-    global_args, dataset_args, model_args, inference_args = get_args()
+    args, ids = get_args()
+    global_args, dataset_args, model_args, inference_args = args
+    local_rank, gpu_id, n_procs = ids
 
-    accelerator = Accelerator()
     _ = seed_everything(global_args['seed'])
 
     dtype = dtype_convert(global_args['dtype'])
-    device = accelerator.device
+    device = torch.device(f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu")
 
     dataset, updated_dataset_args = create_dataset(dataset_args, dtype, device)
     size_dict = dataset.get_sizes()
@@ -61,13 +65,16 @@ def main() -> None:
     best_model_ckpt = torch.load(mod_ckpt_name, map_location = device)
     model.load_state_dict(best_model_ckpt['model_state_dict'])
 
-    tot_config = {
-        'global_args' : global_args,
-        'data' : updated_dataset_args,
-        'model' : updated_model_args,
-        'inference' : inference_args
-    }
-    save_completed_config('full_inference_config.yaml', tot_config, global_args['savedir'])
+    if local_rank == 0:
+        #Only do this under the first process
+        tot_config = {
+            'global_args' : global_args,
+            'data' : updated_dataset_args,
+            'model' : updated_model_args,
+            'inference' : inference_args
+        }
+        save_completed_config('full_inference_config.yaml', tot_config, global_args['savedir'])
+        save_token_size_dict(global_args['savedir'], total_dict)
 
     #Set up dataloaders
     train_set, val_set, test_set = split_data_subsets(dataset, 
@@ -75,6 +82,11 @@ def main() -> None:
                                                     inference_args['train_size'],
                                                     inference_args['val_size'],
                                                     inference_args['test_size'])
+    
+    #Further divide the data here
+    train_set = divide_parallel_subsets(train_set, n_procs, local_rank)
+    val_set = divide_parallel_subsets(val_set, n_procs, local_rank)
+    test_set = divide_parallel_subsets(test_set, n_procs, local_rank)
     
     g = torch.Generator()
     g.manual_seed(0)
@@ -91,11 +103,6 @@ def main() -> None:
                               worker_init_fn=seed_worker,
                               generator=g,
                               **inference_args['dloader_args'])
-    
-    #Prepare for distributed inference using accelerator
-    model, train_loader, val_loader, test_loader = accelerator.prepare(
-        model, train_loader, val_loader, test_loader
-    )
 
     #Run inference
     print("Running inference...")
@@ -125,12 +132,14 @@ def main() -> None:
                                         )
     else:
         test_predictions = None
+
+    #Wait for everyone to get to the same point before saving predictions
         
     save_inference_predictions(global_args['savedir'], 
-                               train_predictions,
-                               val_predictions,
-                               test_predictions)
-    save_token_size_dict(global_args['savedir'], total_dict)
+                            train_predictions,
+                            val_predictions,
+                            test_predictions,
+                            idx = local_rank)
 
 if __name__ == '__main__':
     main()

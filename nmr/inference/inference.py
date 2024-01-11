@@ -24,5 +24,5 @@ def run_inference(model: nn.Module,
         if (ibatch % write_freq == 0):
             print(f"On batch {ibatch}")
         batch_prediction = pred_gen_fn(model, batch, pred_gen_opts, device)
-        predictions.append(batch_prediction)
+        predictions.extend(batch_prediction)
     return predictions
