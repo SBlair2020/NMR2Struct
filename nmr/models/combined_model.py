@@ -11,8 +11,6 @@ class CombinedModel(nn.Module):
     def __init__(self, model_1: str, model_2: str, 
                  model_1_args: dict, model_2_args: dict,
                  forward_fxn: Callable,
-                 model_1_freeze_components: Optional[list] = None,
-                 model_2_freeze_components: Optional[list] = None,
                  device: torch.device = None, 
                  dtype: torch.dtype = torch.float):
         """Constructor for combined model built from two sub models
@@ -30,14 +28,17 @@ class CombinedModel(nn.Module):
         """
         super().__init__()
         self.model_1 = getattr(nmr.models, model_1)(
-            freeze_components = model_1_freeze_components,
             **model_1_args
         )
         self.model_2 = getattr(nmr.models, model_2)(
-            freeze_components = model_2_freeze_components, 
             **model_2_args
         )
         self.fwd_fn = getattr(forward_fxns, forward_fxn)
+    
+    def initialize_weights(self) -> None:
+        """initialize network weights"""
+        self.model_1.initialize_weights()
+        self.model_2.initialize_weights()
 
     def freeze(self) -> None:
         """Disables gradients for specific components of the network

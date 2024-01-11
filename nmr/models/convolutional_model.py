@@ -28,7 +28,18 @@ class ConvolutionalModel(nn.Module):
                                                 dtype,
                                                 device)
         self.freeze_components = freeze_components
-    
+
+    def initialize_weights(self) -> None:
+        """initialize network weights
+        Non-1D parameters are initialized using Xavier initialization,
+        1D parameters are initialized to 0
+        """
+        for p in self.network.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+            elif p.dim() == 1:
+                nn.init.zeros_(p)
+
     def freeze(self) -> None:
         """Disables gradients for specific components of the network
         

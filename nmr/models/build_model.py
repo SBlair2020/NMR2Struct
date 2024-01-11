@@ -22,6 +22,10 @@ def create_model(model_args: dict, dtype: torch.dtype, device: torch.device) -> 
     #Freeze requisite components
     model.freeze()
 
+    #Initialize the weights if not loading a model
+    if model_args['load_model'] is None:
+        model.initialize_weights()
+
     #Update the model args
     model_args['model_args'] = model_config
 

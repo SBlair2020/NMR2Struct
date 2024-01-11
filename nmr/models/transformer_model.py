@@ -61,6 +61,14 @@ class TransformerModel(nn.Module):
         
         self.freeze_components = freeze_components
 
+    def initialize_weights(self) -> None:
+        """Initializes network weights
+        Non-1D parameters are initialized using Xavier initialization
+        """
+        for p in self.network.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
     def freeze(self) -> None:
         """Disables gradients for specific components of the network
         
