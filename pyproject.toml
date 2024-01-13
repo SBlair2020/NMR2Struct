@@ -22,6 +22,7 @@ Homepage = "https://github.com/FranklinHu1/NMR2Struct"
 [project.scripts]
 nmr_train = "nmr.scripts.run_nmr_training:main"
 nmr_infer = "nmr.scripts.run_nmr_inference:main"
+nmr_analyze = "nmr.scripts.run_nmr_analysis:main"
 available_models = "nmr.models:get_all_models"
 input_formats = "nmr.data:get_input_generators"
 target_formats = "nmr.data:get_target_generators"
