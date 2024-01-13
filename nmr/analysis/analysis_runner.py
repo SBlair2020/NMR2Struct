@@ -4,11 +4,10 @@ from nmr.analysis.metric_fxns import (
     compute_molecule_BCE,
     compute_total_substruct_metrics
 )
-from nmr.analysis.util import intake_data
 from typing import Callable
 import h5py
 import numpy as np
-from util import (
+from nmr.analysis.util import (
     sanitize_prediction_set,
     construct_substructure_mols
 )
