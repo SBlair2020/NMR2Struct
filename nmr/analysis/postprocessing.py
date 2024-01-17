@@ -23,7 +23,7 @@ def format_SMILES_preds_into_h5(f: h5py.File,
     #Save the bad predictions as a concatenated 2D array to save space
     bad_grp = f.create_group('bad_predictions')
     bad_grp.create_dataset('targets', data = bad_targets)
-    bad_grp.create_dataset('predictions', data = bad_predictions)
+    bad_grp.create_dataset('predictions', data = np.array(bad_predictions))
     #Generate a separate entry for each good prediction
     good_grp = f.create_group('valid_predictions')
     for i in range(len(good_targets)):

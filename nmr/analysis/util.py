@@ -74,9 +74,9 @@ def sanitize_single_pred(target: str,
         if sanitize_result is not None:
             valid_predictions.append(sanitize_result)
     if len(valid_predictions) == 0:
-        return (target, predictions), False
+        return target, predictions, False
     else:
-        return (target, valid_predictions), True
+        return target, valid_predictions, True
 
 def sanitize_prediction_set(predictions: np.ndarray,
                             targets: np.ndarray) -> tuple[

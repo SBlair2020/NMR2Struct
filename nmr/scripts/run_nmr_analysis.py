@@ -16,6 +16,8 @@ from nmr.analysis.postprocessing import (
     postprocess_save_substructure_results
 )
 
+from .top_level_utils import save_completed_config
+
 def get_args() -> dict:
     parser = argparse.ArgumentParser(description='Run NMR analysis')
     parser.add_argument('config_file', type = str, help = 'The path to the YAML configuration file')
@@ -29,8 +31,11 @@ def get_args() -> dict:
 def main() -> None:
     print("Parsing arguments...")   
     global_args, analysis_args = get_args()
-    file_handles = intake_data(analysis_args['savedir'], analysis_args['pattern'])
+    file_handles = intake_data(global_args['savedir'], analysis_args['pattern'])
     all_sets = file_handles[0].keys()
+    tot_config = {'global_args' : global_args,
+                  'analysis_args' : analysis_args}
+    save_completed_config("full_analysis_config.yaml", tot_config, global_args['savedir'])
 
     if analysis_args['analysis_type'] == 'substructure':
         print("Analyzing substructure results")

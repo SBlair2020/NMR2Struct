@@ -29,11 +29,11 @@ def compute_molecule_BCE(predictions: list[list[chem.Mol]],
         substructures: List of substructure molecules generated from the substructure SMART strings
     """
     assert(len(predictions) == len(targets))
-    targets = []
+    saved_targets = []
     preds_and_losses = []
     for i_str, targ in enumerate(targets):
-        targ_mol = chem.molFromSmiles(targ)
-        targets.append(targ)
+        targ_mol = chem.MolFromSmiles(targ)
+        saved_targets.append(targ)
         curr_pred = predictions[i_str]
         true_subs = mols_to_labels([targ_mol], substructures)[0]
         current_profs = mols_to_labels(curr_pred, substructures)
@@ -48,7 +48,7 @@ def compute_molecule_BCE(predictions: list[list[chem.Mol]],
         #Sort by loss value so best prediction is first
         pred_losses.sort(key = lambda x: x[1])
         preds_and_losses.append(pred_losses)
-    return targets, preds_and_losses
+    return saved_targets, preds_and_losses
 
 ### Substructure metrics on collated data ###
 def calc_loss_per_sub(predictions: np.ndarray,
@@ -61,7 +61,8 @@ def calc_loss_per_sub(predictions: np.ndarray,
     targets shape: (n_samples, n_substructures)
     '''
     loss = nn.BCELoss(reduction = 'none')
-    loss_arr = loss(predictions.T, targets.T).numpy()
+    torch_preds, torch_targets = torch.from_numpy(predictions.T), torch.from_numpy(targets.T)
+    loss_arr = loss(torch_preds, torch_targets).numpy()
     #Averaging over the last axis for consistency with Keras
     loss_arr = np.mean(loss_arr, axis = -1)
     assert(loss_arr.shape == (957,))
@@ -76,8 +77,8 @@ def get_acc_per_sub(predictions: np.ndarray,
     '''
     m = targets.shape[0]
     correct = targets == (predictions.round())
-    accuracy = torch.sum(correct, axis = 0) / m
-    return accuracy.numpy()
+    accuracy = np.sum(correct, axis = 0) / m
+    return accuracy
 
 def compute_roc_auc_score(predictions: np.ndarray,
                           targets: np.ndarray) -> float:
@@ -88,7 +89,7 @@ def compute_roc_auc_score(predictions: np.ndarray,
     return metrics.roc_auc_score(targets, predictions)
 
 def compute_precision_recall_auc_scores(predictions: np.ndarray,
-                          targets: np.ndarray) -> float:
+                          targets: np.ndarray) -> tuple[float]:
     '''This method expects flattened predictions and targets
     predictions shape: (n_samples * n_substructures)
     targets shape: (n_samples * n_substructures)
@@ -99,14 +100,14 @@ def compute_precision_recall_auc_scores(predictions: np.ndarray,
     return precision, recall, prc_auc_score
 
 def compute_fscore(predictions: np.ndarray,
-                   targets: np.ndarray) -> float:
+                   targets: np.ndarray) -> tuple[float]:
     '''This method expects flattened predictions and targets
     predictions shape: (n_samples * n_substructures)
     targets shape: (n_samples * n_substructures)
     '''
     precision, recall, fscore, _ = metrics.precision_recall_fscore_support(
             targets, predictions >= 0.5, average = 'binary')
-    return fscore
+    return precision, recall, fscore
 
 def compute_exact_seq_match(predictions: np.ndarray,
                             targets: np.ndarray) -> float:
@@ -140,12 +141,18 @@ def compute_total_substruct_metrics(predictions: np.ndarray,
     roc_auc_score = compute_roc_auc_score(flat_pred, flat_tgt)
     precision, recall, prc_auc_score = compute_precision_recall_auc_scores(
             flat_pred, flat_tgt)
-    fscore = compute_fscore(flat_pred, flat_tgt)
+    #The precision and recall from compute_fscore should be reported insteads,
+    #   so overwrite the values from compute_precision_recall_auc_scores
+    precision, recall, fscore = compute_fscore(flat_pred, flat_tgt)
     exact_seq_match_percent = compute_exact_seq_match(predictions, targets)
 
     return {
         'substruct_losses': substruct_losses,
+        'substruct_avg_loss': np.mean(substruct_losses),
+
         'substruct_accs': substruct_accs,
+        'substruct_avg_acc': np.mean(substruct_accs),
+
         'roc_auc_score': roc_auc_score,
         'precision': precision,
         'recall': recall,
