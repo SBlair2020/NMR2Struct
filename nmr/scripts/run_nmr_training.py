@@ -46,7 +46,7 @@ def main() -> None:
     print("Setting up device, datatype, and seed...")
     device = torch.device('cuda:0' if global_args['ngpus'] > 0 else 'cpu')
     dtype = dtype_convert(global_args['dtype'])
-    _ = seed_everything(global_args['seed'])
+    seed = seed_everything(global_args['seed'])
 
     print("Initializing dataset, model, optimizer, loss, and scheduler...")
     # Set up dataset, model, optimizer, loss, and scheduler
@@ -58,6 +58,7 @@ def main() -> None:
     #Fix target pad token as ignore index
     tgt_pad_token = total_dict['tgt_pad_token']
     total_dict['ignore_index'] = tgt_pad_token if tgt_pad_token is not None else -100
+    total_dict['seed'] = seed
     print(total_dict)
 
     #Update model args

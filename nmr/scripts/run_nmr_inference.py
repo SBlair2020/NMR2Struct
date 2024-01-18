@@ -43,7 +43,7 @@ def main() -> None:
     global_args, dataset_args, model_args, inference_args = args
     local_rank, gpu_id, n_procs = ids
 
-    _ = seed_everything(global_args['seed'])
+    seed = seed_everything(global_args['seed'])
 
     dtype = dtype_convert(global_args['dtype'])
     device = torch.device(f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu")
@@ -54,6 +54,7 @@ def main() -> None:
     total_dict = {**size_dict, **token_dict}
     inference_args = specific_update(inference_args, total_dict)
     model_args = specific_update(model_args, total_dict)
+    total_dict['seed'] = seed
 
     model, updated_model_args = create_model(model_args, dtype, device)
     model.to(dtype).to(device)

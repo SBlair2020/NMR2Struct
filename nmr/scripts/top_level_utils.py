@@ -9,6 +9,7 @@ import h5py
 import pickle as pkl
 from functools import reduce
 import math
+import warnings
 
 def seed_everything(seed: Union[int, None]) -> int:
     if seed is None:
@@ -18,6 +19,7 @@ def seed_everything(seed: Union[int, None]) -> int:
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    return seed
 
 def seed_worker() -> None:
     worker_seed = torch.initial_seed() % 2**32
@@ -217,19 +219,20 @@ def specific_update(mapping: dict[str, Any], update_map: dict[str, Any]) -> dict
     return mapping
 
 def select_model(savedir: str,
-                 crtierion: str) -> str:
+                 criterion: str) -> str:
     '''Selects the saved model checkpoints based on the criterion
     
     Args:
         savedir: Directory where model checkpoints are saved
-        critierion: Either 'lowest' or 'highest' loss
+        critierion: Either 'lowest' or 'highest' loss, or name of a model checkpoint to use
     '''
     with open(f"{savedir}/model_names_losses.pkl", "rb") as f:
         model_names, best_losses = pkl.load(f)
-    if crtierion == 'lowest':
+    if criterion == 'lowest':
         idx = np.argmin(best_losses)
-    elif crtierion == 'highest':
+    elif criterion == 'highest':
         idx = np.argmax(best_losses)
     else:
-        raise ValueError("Criterion not supported")
+        warnings.warn("Assuming passed value is a model checkpoint")
+        return criterion
     return model_names[idx]
