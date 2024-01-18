@@ -26,7 +26,6 @@ def get_args() -> dict:
     parser = argparse.ArgumentParser(description='Run NMR inference')
     parser.add_argument('config_file', type = str, help = 'The path to the YAML configuration file')
     parser.add_argument('local_rank', type = int, help = 'The local rank of this process')
-    parser.add_argument('gpu_id', type = int, help = 'The GPU ID to use for this process')
     parser.add_argument('n_procs', type = int, help = 'The total number of concurrent processes running')
     args = parser.parse_args()
     listdoc =  yaml.safe_load(open(args.config_file, 'r'))
@@ -35,13 +34,13 @@ def get_args() -> dict:
         listdoc['data'],
         listdoc['model'],
         listdoc['inference']
-    ), (args.local_rank, args.gpu_id, args.n_procs)
+    ), (args.local_rank, args.n_procs)
 
 def main() -> None:
     print("Parsing arguments...")
     args, ids = get_args()
     global_args, dataset_args, model_args, inference_args = args
-    local_rank, gpu_id, n_procs = ids
+    local_rank, n_procs = ids
 
     seed = seed_everything(global_args['seed'])
 
