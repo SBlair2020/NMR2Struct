@@ -14,7 +14,7 @@ import re
 
 def seed_everything(seed: Union[int, None]) -> int:
     if seed is None:
-        seed = random.randint(0, 100000)
+        seed = torch.seed()
     os.environ['PYTHONHASHSEED'] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
