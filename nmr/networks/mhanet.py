@@ -109,7 +109,7 @@ class MHANet(nn.Module):
 
         self.pos_encoder = lambda x : x if positional_encoding is None else positional_encoding(d_model)
         self.mha = nn.MultiheadAttention(d_model, n_heads, batch_first = True)
-        self.ffnn = forward_network(d_model, d_out, d_feedforward)
+        self.ffnn = forward_network(d_model, d_out, d_feedforward, max_seq_len)
 
     def _sanitize_forward_args(self, x: tuple[Tensor, tuple[str]]) -> Tensor:
         #Unpack the tuple

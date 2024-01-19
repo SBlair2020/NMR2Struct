@@ -13,6 +13,7 @@ class MHANetModel(nn.Module):
                  forward_network: str, 
                  src_pad_token: int,
                  src_forward_function: str,
+                 source_size: int,
                  d_model: int,
                  d_out: int,
                  d_feedforward: int, 
@@ -21,8 +22,42 @@ class MHANetModel(nn.Module):
                  freeze_components: Optional[list[str]] = None,
                  device: torch.device = None,
                  dtype: torch.dtype = None):
+        """Implements a minimal multihead attention model
+
+        Args:
+            src_embed: String corresponding to the embedding module to use for the source sequence
+            positional_encoding: String corresponding to the positional encoding module to use. 
+            forward_network: Name of the NN design to use after the MHA module
+            src_pad_token: The index used to indicate padding in the source sequence
+            src_forward_function: Name of the function that processes the src tensor using the src embedding, src pad token, and positional encoding to generate
+                the embedded src and the src_key_pad_mask
+            source_size: The size of the source alphabet (including start, stop, and pad tokens)
+            d_model: Embedding dimension of the model
+            d_out: Output dimension of the model
+            d_feedforward: Hidden dimension to use for feedforward networks in the forward network
+            n_heads: Number of heads to use for multihead attention
+            max_seq_len: Maximum sequence length encountered in the dataset
+            freeze_components: List of component names to freeze weights of
+            device: The device to use for the model
+            dtype: The datatype to use for the model
+        """
         super().__init__()
-        src_embed_module = getattr(embeddings, src_embed)
+        
+        if src_embed is None:
+            src_embed_module = None
+        elif src_embed == 'nn.embed':
+            src_embed_module = nn.Embedding(
+                source_size, 
+                d_model,
+                padding_idx=src_pad_token,
+                dtype=dtype,
+                device=device
+            )
+        elif src_embed == 'spectra_continuous':
+            src_embed_module = embeddings.NMRContinuousEmbedding(d_model)
+        else:
+            raise ValueError("Unsupported source embedding")
+
         positional_encoding_module = getattr(mhanet, positional_encoding) if positional_encoding is not None else None
         forward_network_module = getattr(mhanet, forward_network)  
         src_forward_function = getattr(forward_fxns, src_forward_function)
