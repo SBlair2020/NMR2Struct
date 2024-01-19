@@ -10,6 +10,7 @@ import pickle as pkl
 from functools import reduce
 import math
 import warnings
+import re
 
 def seed_everything(seed: Union[int, None]) -> int:
     if seed is None:
@@ -218,6 +219,10 @@ def specific_update(mapping: dict[str, Any], update_map: dict[str, Any]) -> dict
             mapping[k] = specific_update(v, update_map)
     return mapping
 
+def extract_loss_val(checkpoint_name: str) -> float:
+    """Extract loss value from a checkpoint name"""
+    return float(re.findall(r"\d+\.\d+", checkpoint_name)[0])
+
 def select_model(savedir: str,
                  criterion: str) -> str:
     '''Selects the saved model checkpoints based on the criterion
@@ -226,13 +231,21 @@ def select_model(savedir: str,
         savedir: Directory where model checkpoints are saved
         critierion: Either 'lowest' or 'highest' loss, or name of a model checkpoint to use
     '''
-    with open(f"{savedir}/model_names_losses.pkl", "rb") as f:
-        model_names, best_losses = pkl.load(f)
+    if criterion not in ['lowest', 'highest']:
+        warnings.warn("Assuming passed value is a model checkpoint")
+        return criterion
+    if not os.path.isfile(f"{savedir}/model_names_losses.pkl"):
+        print("Deducing checkpoint losses from file names")
+        all_files = os.listdir(savedir)
+        checkpoint_files = list(filter(lambda x : x.endswith('.pt'), all_files))
+        model_names = [f"{savedir}/{f}" for f in checkpoint_files]
+        best_losses = [extract_loss_val(f) for f in checkpoint_files]
+    else:
+        print("Loading checkpoint losses from file")
+        with open(f"{savedir}/model_names_losses.pkl", "rb") as f:
+            model_names, best_losses = pkl.load(f)
     if criterion == 'lowest':
         idx = np.argmin(best_losses)
     elif criterion == 'highest':
         idx = np.argmax(best_losses)
-    else:
-        warnings.warn("Assuming passed value is a model checkpoint")
-        return criterion
     return model_names[idx]
