@@ -117,6 +117,7 @@ def main() -> None:
         'training' : training_args
     }
     save_completed_config('full_train_config.yaml', tot_config, global_args['savedir'])
+    save_token_size_dict(global_args['savedir'], total_dict)
 
     # Train
     print("Beginning training")
@@ -138,7 +139,6 @@ def main() -> None:
                 )
     
     save_train_history(global_args['savedir'], losses)
-    save_token_size_dict(global_args['savedir'], total_dict)
 
 if __name__ == '__main__':
     main()
