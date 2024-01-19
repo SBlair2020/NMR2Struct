@@ -56,8 +56,10 @@ class TransformerModel(nn.Module):
             src_embed_layer = embeddings.NMRContinuousEmbedding(d_model)
         elif src_embed == 'nn.embed':
             src_embed_layer = nn.Embedding(source_size, d_model, padding_idx = src_pad_token)
-        elif src_embed == 'none': 
+        elif src_embed is None: 
             src_embed_layer = None
+        else:
+            raise ValueError("Unsupported source embedding")
 
         assert(tgt_embed == 'nn.embed')
         tgt_embed_layer = nn.Embedding(target_size, d_model, padding_idx = tgt_pad_token)
