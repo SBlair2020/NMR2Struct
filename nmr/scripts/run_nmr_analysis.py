@@ -58,7 +58,7 @@ def main() -> None:
                 curr_results = run_process_parallel(process_SMILES_predictions,
                                                     analysis_args['f_addn_args'],
                                                     selected_handles,
-                                                    os.cpu_count())
+                                                    min(32, os.cpu_count()))
                 postprocess_save_SMILES_results(f, set_name, curr_results)
 
 if __name__ == "__main__":
