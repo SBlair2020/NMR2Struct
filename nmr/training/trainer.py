@@ -104,25 +104,30 @@ def test_loop(model: nn.Module,
 
 def save_model(model: nn.Module, 
                optim: torch.optim.Optimizer, 
+               scheduler: Optional[torch.optim.lr_scheduler.LambdaLR],
                epoch: int, 
                loss_metric: float, 
                savedir: str, 
-               tag: str = "") -> str:
+               savename: str = None) -> str:
     """Save model and optimizer state dicts to file
     Args:
         model: The model to save
         optim: The optimizer to save
+        scheduler: The scheduler to save (can be None)
         epoch: The current epoch
         loss_metric: The loss value to associate with the 
         savedir: The directory to save the model and optimizer state dicts
-        tag: An optional tag to add to the model name
+        savename: The name to save for the checkpoint. If None, then the default format
+            for saving models is used: model_epoch={epoch}_loss={loss_metric:.8f}.pt
     """
-    if tag == "":
+    if savename is None:
         savename = f'{savedir}/model_epoch={epoch}_loss={loss_metric:.8f}.pt'
     else:
-        savename = f'{savedir}/model_epoch={epoch}_loss={loss_metric:.8f}_{tag}.pt'
+        savename = savename
     torch.save({'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optim.state_dict()},
+                'optimizer_state_dict': optim.state_dict(),
+                'scheduler_state_dict' : scheduler.state_dict() if scheduler is not None else None,
+                'epoch' : epoch},
                 savename)
     return savename
     
@@ -139,7 +144,7 @@ def extract_loss_val(checkpoint_name: str) -> float:
 
 def determine_existing_checkpoints(savedir: str) -> tuple[list, list]:
     all_files = os.listdir(savedir)
-    checkpoint_files = list(filter(lambda x: x.endswith('.pt'), all_files))
+    checkpoint_files = list(filter(lambda x: x.endswith('.pt') and x != "RESTART_checkpoint.pt", all_files))
     if len(checkpoint_files) == 0:
         return [], []
     else:
@@ -222,14 +227,27 @@ def fit(model: nn.Module,
         if curr_k_metric_value < max_loss_value:
             if max_loss_model is not None:
                 delete_checkpoint(max_loss_model)
+            #Set the savename to None here to save the model checkpoints
+            #   using the default filename format
             model_name = save_model(model, 
                                     optimizer, 
+                                    scheduler,
                                     true_epoch, 
                                     curr_k_metric_value, 
-                                    save_dir)
+                                    save_dir,
+                                    savename=None)
             #Update loss value and model names
             best_losses[max_loss_idx] = curr_k_metric_value
             model_names[max_loss_idx] = model_name
+        #Save a restart model every epoch in case the training crashes
+        #   or needs to be restarted
+        save_model(model,
+                   optimizer,
+                   scheduler,
+                   true_epoch,
+                   curr_k_metric_value,
+                   save_dir,
+                   savename = f"{save_dir}/RESTART_checkpoint.pt")
     writer.flush()
     writer.close()
     final_test_loss = test_loop(model,
