@@ -1,6 +1,7 @@
 import argparse
 import yaml
 import h5py
+import numpy as np
 import os
 from nmr.analysis.analysis_runner import (
     process_substructure_predictions,
@@ -9,7 +10,9 @@ from nmr.analysis.analysis_runner import (
 )
 from nmr.analysis.util import (
     intake_data,
+    apply_substruct_invert_fxn
 )
+import nmr.analysis.util as analysis_utils
 from nmr.analysis.postprocessing import (
     collate_predictions,
     postprocess_save_SMILES_results,
@@ -40,16 +43,31 @@ def main() -> None:
     if analysis_args['analysis_type'] == 'substructure':
         print("Analyzing substructure results")
         result_dict = {}
-        with h5py.File(os.path.join(global_args['savedir'], 'combined_predictions.h5'), 'w') as f:
+        with h5py.File(os.path.join(global_args['savedir'], 'combined_predictions.h5'), 'w') as save_handle:
             for set_name in all_sets:
                 selected_handles = [f[set_name] for f in file_handles]
                 #Gather predictions together because the metrics are computed over all predictions
                 #   and targets together
                 collated_targets, collated_predictions, collated_smiles = collate_predictions(selected_handles)
+                #For all intents and purposes, substructures should be represented as binary 
+                #   arrays for metric calculations. If not, an inversion needs to be done on the 
+                #   sequences to turn them into fixed-length binary arrays.
+                if not np.allclose(np.unique(collated_predictions), np.array([0, 1])):
+                    assert('additional_pad_token' in selected_handles[0].keys())
+                    all_pad_tokens = [h['additional_pad_token'][()] for h in selected_handles]
+                    assert(len(np.unique(all_pad_tokens)) == 1)
+                    pad_token = all_pad_tokens[0]
+                    inversion_fxn = getattr(analysis_utils,
+                                            analysis_args['substruct_inversion_fxn'])
+                    collated_predictions = apply_substruct_invert_fxn(collated_predictions,
+                                                                      inversion_fxn=inversion_fxn,
+                                                                      padding_token=pad_token)
+
+
                 result_dict[set_name] = process_substructure_predictions(collated_predictions,
                                                                         collated_targets)
                 #Save the collated predictions and targets to the open h5 file pointer
-                set_group = f.create_group(set_name)
+                set_group = save_handle.create_group(set_name)
                 set_group.create_dataset('targets', data = collated_targets)
                 set_group.create_dataset('predictions', data = collated_predictions)
                 set_group.create_dataset('smiles', data = collated_smiles)
@@ -59,14 +77,14 @@ def main() -> None:
     
     elif analysis_args['analysis_type'] == 'SMILES':
         print("Analyzing SMILES results")
-        with h5py.File(os.path.join(global_args['savedir'], 'processed_predictions.h5'), 'w') as f:
+        with h5py.File(os.path.join(global_args['savedir'], 'processed_predictions.h5'), 'w') as save_handle:
             for set_name in all_sets:
                 selected_handles = [f[set_name] for f in file_handles]
                 curr_results = run_process_parallel(process_SMILES_predictions,
                                                     analysis_args['f_addn_args'],
                                                     selected_handles,
                                                     min(32, os.cpu_count()))
-                postprocess_save_SMILES_results(f, set_name, curr_results)
+                postprocess_save_SMILES_results(save_handle, set_name, curr_results)
 
 if __name__ == "__main__":
     main()

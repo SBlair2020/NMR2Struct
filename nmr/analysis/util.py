@@ -3,6 +3,7 @@ import numpy as np
 import warnings
 import os, re
 import h5py
+from typing import Callable
 
 ### Methods for sanitizing SMILES strings ###
 def count_num_heavy(smi: str) -> int:
@@ -13,13 +14,6 @@ def count_num_heavy(smi: str) -> int:
         if atom.GetAtomicNum() > 1:
             total += 1
     return total
-
-def convert_seq_to_binary(sequence):
-    #Take care of 1-indexing during processing
-    seq_shifted = sequence - 1 
-    binary = np.zeros(957)
-    binary[seq_shifted] = 1
-    return binary
 
 def construct_substructure_mols(substructures: list[str]) -> list[chem.Mol]:
     """
@@ -142,3 +136,32 @@ class PredictionView:
                 return self.file_handles[file_idx][idx]
             else:
                 return self.file_handles[file_idx][idx - self.len_lower_bounds[file_idx-1]]
+            
+### Inversion methods for converting back to binary substructure arrays ###
+def convert_one_indexed_seq_to_binary(sequence: np.ndarray) -> np.ndarray:
+    #Take care of 1-indexing during processing
+    seq_shifted = sequence - 1 
+    binary = np.zeros(957)
+    binary[seq_shifted] = 1
+    return binary
+
+def apply_substruct_invert_fxn(predictions: np.ndarray,
+                               inversion_fxn: Callable[[np.ndarray], np.ndarray],
+                               padding_token: int = None) -> np.ndarray:
+    '''Takes a sequence of potentially ragged predictions (padded with padding_token) and converts them
+        back to a binary substructure representation
+    
+    Args:
+        predictions: The set of predictions to convert back to binary
+        inversion_fxn: The function to apply to each prediction to convert back to binary
+        padding_token: The token used for padding the predictions
+    '''
+    print(f"Inverting {len(predictions)} predictions")
+    inverted = []
+    for i in range(len(predictions)):
+        curr_pred = predictions[i]
+        if padding_token is not None:
+            curr_pred = curr_pred[curr_pred != padding_token]
+        inverted.append(inversion_fxn(curr_pred))
+    assert(len(inverted) == len(predictions))
+    return np.array(inverted)
