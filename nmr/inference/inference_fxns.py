@@ -15,12 +15,19 @@ def infer_basic_model(model: nn.Module,
         opts: Options to pass to the model as a dictionary, can be empty here
     """
     x, y = batch
-    input = x[0]
     target = y[0]
     with torch.no_grad():
         output = model(x)
-    return [(target.detach().cpu().numpy(), 
-             output.detach().cpu().numpy())]
+    #Also save x[1] which is the set of SMILES strings
+    #   Note that even for a batch size of 1, the batch smiles element
+    #   returned by a dataloader is a tuple of the form (str,) which converts
+    #   correctly to [str] when using list(). It does not cause the string
+    #   to break apart into a list of characters.
+    return [(
+        target.detach().cpu().numpy(), 
+        output.detach().cpu().numpy(),
+        list(x[1])
+    )]
 
 def get_top_k_sample_batched(k_val: int | float , 
                              character_probabilities: Tensor) -> Tensor:
@@ -144,6 +151,7 @@ def infer_transformer_model(model: nn.Module,
         #   tuples of (target, [pred1, pred2, ...])?
         generated_predictions.append((
             smiles[i] if decode else targets[i].detach().cpu().numpy(),
-            list(curr_batch_predictions[j][i] for j in range(num_pred_per_tgt))
+            list(curr_batch_predictions[j][i] for j in range(num_pred_per_tgt)),
+            smiles[i]
         ))
     return generated_predictions

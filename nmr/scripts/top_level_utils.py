@@ -113,7 +113,7 @@ def save_str_set(h5ptr: h5py.File,
 
     Args:
         h5ptr: The h5 file pointer to save to
-        preds: The list of predictions, tuples of form (tgt, [pred, ...])
+        preds: The list of predictions, tuples of form (tgt, [pred, ...], smiles)
         savename: The name to save the predictions under
 
     In h5py, python strings are automatically encoded as variable-length UTF-8.
@@ -149,7 +149,8 @@ def save_array_set(h5ptr: h5py.File,
 
     Args:
         h5ptr: The h5 file pointer to save to
-        preds: The list of predictions, tuples of form (tgt, [pred, ...])
+        preds: The list of predictions, tuples of form ([tgt_i, ...], [pred_i, ...], [smiles_i, ...])
+            where each tgt_i and pred_i is a 2D array and smiles_i is a 1D array
         savename: The name to save the predictions under
 
     padding is done on these arrays to ensure size consistency when saving to hdf5
@@ -158,14 +159,18 @@ def save_array_set(h5ptr: h5py.File,
     targets = [elem[0] for elem in preds]
     targets = np.concatenate(targets)
     predictions = [elem[1] for elem in preds]
+    smiles = [elem[2] for elem in preds]
+    smiles = np.concatenate(smiles)
     if isinstance(predictions[0], list):
         max_len = find_max_length(predictions)
         pad_token = 999_999
         predictions = [pad_single_prediction(elem, max_len, pad_token) for elem in predictions]
         group.create_dataset("additional_pad_token", data = pad_token)
     predictions = np.concatenate(predictions)
+    assert(targets.shape[0] == predictions.shape[0] == smiles.shape[0])
     group.create_dataset("targets", data = targets)
     group.create_dataset("predictions", data = predictions)
+    group.create_dataset("smiles", data = smiles)
 
 def save_inference_predictions(savedir: str,
                                train_predictions: list,

@@ -122,11 +122,22 @@ def compute_exact_seq_match(predictions: np.ndarray,
             num_match += 1
     return (num_match / predictions.shape[0]) * 100
 
+def compute_sequence_BCE_losses(predictions: np.ndarray,
+                                targets: np.ndarray) -> float:
+    '''
+    Avg BCEloss between target and prediction substructures
+    predictions shape: (n_samples, n_substructures)
+    targets shape: (n_samples, n_substructures)
+    '''
+    criterion = nn.BCELoss()
+    torch_preds, torch_targets = torch.from_numpy(predictions), torch.from_numpy(targets)
+    return criterion(torch_preds, torch_targets).item()
+
 def compute_total_substruct_metrics(predictions: np.ndarray,
                                     targets: np.ndarray) -> dict:
     '''
     Computes the following and generates a dictionary of results:
-        - substructure losses
+        - substructure losses (BCE per sub)
         - substructure accuracies 
         - precision
         - recall
@@ -134,6 +145,7 @@ def compute_total_substruct_metrics(predictions: np.ndarray,
         - roc_auc_score
         - prc_auc_score
         - exact sequence match percent
+        - avg sequence BCELoss (not per sub)
     '''
     flat_tgt, flat_pred = targets.flatten(), predictions.flatten()
     substruct_losses = calc_loss_per_sub(predictions, targets)
@@ -145,6 +157,8 @@ def compute_total_substruct_metrics(predictions: np.ndarray,
     #   so overwrite the values from compute_precision_recall_auc_scores
     precision, recall, fscore = compute_fscore(flat_pred, flat_tgt)
     exact_seq_match_percent = compute_exact_seq_match(predictions, targets)
+
+    avg_seq_bce = compute_sequence_BCE_losses(predictions, targets)
 
     return {
         'substruct_losses': substruct_losses,
@@ -158,5 +172,6 @@ def compute_total_substruct_metrics(predictions: np.ndarray,
         'recall': recall,
         'prc_auc_score': prc_auc_score,
         'fscore': fscore,
-        'exact_seq_match_percent': exact_seq_match_percent
+        'exact_seq_match_percent': exact_seq_match_percent,
+        'avg_seq_bce': avg_seq_bce
     }
