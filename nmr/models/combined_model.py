@@ -12,7 +12,7 @@ class CombinedModel(nn.Module):
                  model_2: str, 
                  model_1_args: dict, 
                  model_2_args: dict,
-                 forward_fxn: Callable,
+                 forward_fxn: str,
                  model_1_ckpt: str = None, 
                  model_2_ckpt: str = None,
                  device: torch.device = None, 
@@ -89,5 +89,7 @@ class CombinedModel(nn.Module):
             tgt = y[1].to(self.device)
         else:
             tgt = y[0].to(self.device)
+        if isinstance(loss_fn, torch.nn.CrossEntropyLoss):
+            tgt = tgt.long()
         loss = loss_fn(pred, tgt)
         return loss
