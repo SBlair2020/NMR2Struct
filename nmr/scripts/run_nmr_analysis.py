@@ -40,15 +40,22 @@ def main() -> None:
     if analysis_args['analysis_type'] == 'substructure':
         print("Analyzing substructure results")
         result_dict = {}
-        for set_name in all_sets:
-            selected_handles = [f[set_name] for f in file_handles]
-            #Gather predictions together because the metrics are computed over all predictions
-            #   and targets together
-            collated_targets, collated_predictions = collate_predictions(selected_handles)
-            result_dict[set_name] = process_substructure_predictions(collated_predictions,
-                                                                     collated_targets)
-        postprocess_save_substructure_results(global_args['savedir'],
-                                              result_dict)
+        with h5py.File(os.path.join(global_args['savedir'], 'combined_predictions.h5'), 'w') as f:
+            for set_name in all_sets:
+                selected_handles = [f[set_name] for f in file_handles]
+                #Gather predictions together because the metrics are computed over all predictions
+                #   and targets together
+                collated_targets, collated_predictions, collated_smiles = collate_predictions(selected_handles)
+                result_dict[set_name] = process_substructure_predictions(collated_predictions,
+                                                                        collated_targets)
+                #Save the collated predictions and targets to the open h5 file pointer
+                set_group = f.create_group(set_name)
+                set_group.create_dataset('targets', data = collated_targets)
+                set_group.create_dataset('predictions', data = collated_predictions)
+                set_group.create_dataset('smiles', data = collated_smiles)
+
+            postprocess_save_substructure_results(global_args['savedir'],
+                                                result_dict)
     
     elif analysis_args['analysis_type'] == 'SMILES':
         print("Analyzing SMILES results")

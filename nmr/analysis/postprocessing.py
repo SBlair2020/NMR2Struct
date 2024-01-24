@@ -8,12 +8,15 @@ def collate_predictions(pred_sets: list[h5py.File]) -> tuple[np.ndarray, np.ndar
     """Combines all the targets and predictions together into one NP array each"""
     all_targets = []
     all_predictions = []
+    all_smiles = []
     for pset in pred_sets:
         assert('targets' in pset.keys())
         assert('predictions' in pset.keys())
+        assert('smiles' in pset.keys())
         all_targets.append(pset['targets'])
         all_predictions.append(pset['predictions'])
-    return np.concatenate(all_targets), np.concatenate(all_predictions)
+        all_smiles.append(pset['smiles'])
+    return np.concatenate(all_targets), np.concatenate(all_predictions), np.concatenate(all_smiles)
 
 def format_SMILES_preds_into_h5(f: h5py.File, 
                          good_targets: list[str],
