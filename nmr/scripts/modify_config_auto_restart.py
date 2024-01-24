@@ -48,7 +48,7 @@ def main() -> None:
     print("Saving modified configuration file and overwriting...")
     save_completed_config(config_filename,
                           current_config,
-                          savedir)
+                          os.getcwd())
     print("Done!")
 if __name__ == "__main__":
     main()
