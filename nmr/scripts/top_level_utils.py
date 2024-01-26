@@ -14,10 +14,11 @@ import re
 
 def seed_everything(seed: Union[int, None]) -> int:
     if seed is None:
-        seed = random.randint(0, 100_000_000)
+        seed = torch.seed()
     os.environ['PYTHONHASHSEED'] = str(seed)
     random.seed(seed)
-    np.random.seed(seed)
+    #numpy requires the seed to be between 0 and 2**32 - 1
+    np.random.seed(seed % 2**32)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     return seed
