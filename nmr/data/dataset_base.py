@@ -8,6 +8,7 @@ from rdkit import Chem as chem
 import nmr.data.input_generators as input_generators
 import nmr.data.target_generators as target_generators
 import torch
+from tqdm import tqdm
 
 class NMRDataset(Dataset):
     """Sketch of potential dataset class"""
@@ -21,6 +22,7 @@ class NMRDataset(Dataset):
                  target_generator_addn_args: dict,
                  alphabet: str,
                  eps: float = 0.005,
+                 front_load_data_processing: bool = False,
                  dtype: torch.dtype = torch.float,
                  device: torch.device = None):
         """
@@ -32,6 +34,10 @@ class NMRDataset(Dataset):
             target_generator: Function name that generates the model target
             alphabet: Path to the alphabet file
             eps: Epsilon value for thresholding spectra
+            front_load_data_processing: Flag that indicates whether all data is processed
+                at the start (and __getitem__ just returns the processed data) or whether
+                items are processed one at a time through __getitem__. The former is faster
+                but requires more memory.
         """
         self.spectra_h5 = h5py.File(spectra_file, 'r')
         self.label_h5 = h5py.File(label_file, 'r')
@@ -43,6 +49,7 @@ class NMRDataset(Dataset):
         self.smiles = [chem.CanonSmiles(smi.decode('utf-8')) for smi in self.smiles]
         self.tokenizer = BasicSmilesTokenizer()
         self.eps = eps
+        self.front_load_data_processing = front_load_data_processing
 
         self.device = device
         self.dtype = dtype
@@ -65,6 +72,21 @@ class NMRDataset(Dataset):
             **target_generator_addn_args
         )
 
+        if self.front_load_data_processing:
+            print("Preprocessing all data at once...")
+            self.preprocessed_model_inputs = []
+            self.preprocessed_model_targets = []
+            for i in tqdm(range(len(self))):
+                spectra_data = self.spectra[i]
+                smiles_data = self.smiles[i]
+                label_data = self.labels[i]
+                model_input = self.input_generator.transform(spectra_data, smiles_data, label_data)
+                model_target = self.target_generator.transform(spectra_data, smiles_data, label_data)
+                model_input = torch.from_numpy(model_input).to(self.dtype).to(self.device)
+                model_target = tuple([torch.from_numpy(elem).to(self.dtype).to(self.device) for elem in model_target])
+                self.preprocessed_model_inputs.append(model_input)
+                self.preprocessed_model_targets.append(model_target)
+
     def __len__(self):
         return len(self.labels)
 
@@ -84,15 +106,20 @@ class NMRDataset(Dataset):
             np.save(f, self.alphabet)
     
     def __getitem__(self, idx):
-        spectra_data = self.spectra[idx]
-        smiles_data = self.smiles[idx]
-        label_data = self.labels[idx]
-        #Note: model_input is a Tensor, model_target is a tuple of Tensors!
-        model_input = self.input_generator.transform(spectra_data, smiles_data, label_data)
-        model_target = self.target_generator.transform(spectra_data, smiles_data, label_data)
-        model_input = torch.from_numpy(model_input).to(self.dtype).to(self.device)
-        model_target = tuple([torch.from_numpy(elem).to(self.dtype).to(self.device) for elem in model_target])
-        return (model_input, smiles_data), model_target
+        if self.front_load_data_processing:
+            model_input = self.preprocessed_model_inputs[idx]
+            model_target = self.preprocessed_model_targets[idx]
+            return (model_input, self.smiles[idx]), model_target
+        else:
+            spectra_data = self.spectra[idx]
+            smiles_data = self.smiles[idx]
+            label_data = self.labels[idx]
+            #Note: model_input is a Tensor, model_target is a tuple of Tensors!
+            model_input = self.input_generator.transform(spectra_data, smiles_data, label_data)
+            model_target = self.target_generator.transform(spectra_data, smiles_data, label_data)
+            model_input = torch.from_numpy(model_input).to(self.dtype).to(self.device)
+            model_target = tuple([torch.from_numpy(elem).to(self.dtype).to(self.device) for elem in model_target])
+            return (model_input, smiles_data), model_target
     
     def get_sizes(self) -> dict[int, int]:
         """Returns the padding tokens for the input and target"""
