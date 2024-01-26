@@ -105,7 +105,7 @@ class MHANetModel(nn.Module):
                         param.requires_grad = False
     
     def forward(self, x: tuple[Tensor, tuple[str]]) -> Tensor:
-        self.network(x)
+        return self.network(x)
 
     def get_loss(self, 
                  x: tuple[Tensor, tuple[str]], 
