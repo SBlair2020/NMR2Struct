@@ -54,7 +54,8 @@ def main() -> None:
     dataset.save_smiles_alphabet(global_args['savedir'])
     size_dict = dataset.get_sizes()
     token_dict = dataset.get_ctrl_tokens()
-    total_dict = {**size_dict, **token_dict}
+    max_len_dict = dataset.get_max_seq_len()
+    total_dict = {**size_dict, **token_dict, **max_len_dict}
     #Fix target pad token as ignore index
     tgt_pad_token = total_dict['tgt_pad_token']
     total_dict['ignore_index'] = tgt_pad_token if tgt_pad_token is not None else -100

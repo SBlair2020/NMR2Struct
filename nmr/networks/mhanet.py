@@ -59,6 +59,51 @@ class FlattenNNLinear(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self.network(x)
     
+class NNLinearTransposeDownsize(nn.Module):
+
+    def __init__(self,
+                 d_model: int,
+                 d_out: int,
+                 d_feedforward: int,
+                 max_seq_len: int,
+                 n_layers: int,
+                 layer_dimensions: list[int]):
+        '''This module does not use d_feedforward: dimensions of the layers are determined
+        by the layer_dimensions argument'''
+        assert(n_layers == len(layer_dimensions))
+        super().__init__()
+        self.n_layers = n_layers
+        self.layer_dims = layer_dimensions
+        self.pretranspose = []
+        for i in range(n_layers):
+            if i == 0:
+                self.pretranspose.append(nn.Linear(d_model, layer_dimensions[i]))
+            else:
+                self.pretranspose.append(nn.Linear(layer_dimensions[i - 1], layer_dimensions[i]))
+            self.pretranspose.append(nn.ReLU())
+        self.pretranspose = nn.Sequential(*self.pretranspose)
+        self.posttranspose = nn.Sequential(
+            nn.Linear(max_seq_len, d_out),
+            nn.ReLU()
+        )
+        self.out = nn.Sequential(
+            nn.Linear(layer_dimensions[-1], 1),
+            nn.Sigmoid()
+        )
+    
+    def forward(self, x: Tensor) -> Tensor:
+        '''
+        x: Tensor, shape [batch_size, seq_len, d_model]
+        '''
+        x = self.pretranspose(x)
+        #(N, T, D_n) -> (N, D_n, T)
+        x = x.transpose(1, 2) 
+        x = self.posttranspose(x)
+        #(N, D_n, D_out) -> (N, D_out, D_n)
+        x = x.transpose(1, 2) 
+        x = self.out(x)
+        return x.squeeze(-1)
+    
 class MHANet(nn.Module):
 
     model_id = 'MHANet'
@@ -107,7 +152,7 @@ class MHANet(nn.Module):
         self.device = device
         self.dtype = dtype
 
-        self.pos_encoder = lambda x : x if positional_encoding is None else positional_encoding(d_model)
+        self.pos_encoder = (lambda x : x) if positional_encoding is None else positional_encoding(d_model)
         self.mha = nn.MultiheadAttention(d_model, n_heads, batch_first = True)
         self.ffnn = forward_network(d_model, d_out, d_feedforward, max_seq_len)
 

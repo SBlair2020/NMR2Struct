@@ -1,7 +1,7 @@
 from nmr.networks import mhanet, forward_fxns, embeddings
 import torch
 from torch import nn, Tensor
-from typing import tuple, Callable, Optional, Any
+from typing import Callable, Optional, Any
 
 class MHANetModel(nn.Module):
 
@@ -18,7 +18,7 @@ class MHANetModel(nn.Module):
                  d_out: int,
                  d_feedforward: int, 
                  n_heads: int, 
-                 max_seq_len: int,
+                 max_src_len: int,
                  freeze_components: Optional[list[str]] = None,
                  device: torch.device = None,
                  dtype: torch.dtype = None):
@@ -36,7 +36,7 @@ class MHANetModel(nn.Module):
             d_out: Output dimension of the model
             d_feedforward: Hidden dimension to use for feedforward networks in the forward network
             n_heads: Number of heads to use for multihead attention
-            max_seq_len: Maximum sequence length encountered in the dataset
+            max_src_len: Maximum sequence length encountered in the dataset
             freeze_components: List of component names to freeze weights of
             device: The device to use for the model
             dtype: The datatype to use for the model
@@ -72,7 +72,7 @@ class MHANetModel(nn.Module):
             d_out,
             d_feedforward,
             n_heads,
-            max_seq_len,
+            max_src_len,
             device,
             dtype
         )
