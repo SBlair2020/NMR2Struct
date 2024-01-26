@@ -28,6 +28,42 @@ def spectrum_extraction(spectrum: np.ndarray, criterion: str) -> np.ndarray:
         raise ValueError("Invalid criterion for spectrum extraction")
     return indices
 
+def spectrum_ppm_normalization(selected_ppm: np.ndarray,
+                               ppm_shift_range: np.ndarray,
+                               normalization: str) -> np.ndarray:
+    '''Normalizes the ppm shift values of the given spectrum 
+    Args:
+        selected_ppm: The selected ppm values to map into a standard interval
+        ppm_shift_range: The range of true ppm values used in the spectrum
+        normalziation: The method for normalizing (cannot be None):
+            'neg_uniform': ppm values are normalized to [-1, 0]
+            'uniform': ppm values are normalized to [0, 1]
+            'first_half': ppm values are normalized to [0, 0.5]
+            'second_half': ppm values are normalized to [0.5, 1]
+    
+    The strategy for normalization is to map the ppm values to the interval [0, 1] and then
+    apply the desired transformation to the interval [a, b], i.e. given x:
+
+        x_unif = (x - min(x)) / (max(x) - min(x))
+        x_final = x_unif * (b - a) + a
+    '''
+    min_ppm = np.min(ppm_shift_range)
+    max_ppm = np.max(ppm_shift_range)
+    ppm_range = max_ppm - min_ppm
+    unif_ppms = (selected_ppm - min_ppm) / ppm_range
+    if normalization == 'uniform':
+        return unif_ppms
+    elif normalization == 'neg_uniform':
+        a, b = -1, 0
+    elif normalization == 'first_half':
+        a, b = 0, 0.5
+    elif normalization == 'second_half':
+        a, b = 0.5, 1
+    else:
+        raise ValueError("Unsupported normalization scheme")
+    return (unif_ppms * (b - a)) + a
+
+
 def select_points(spectra: np.ndarray, hnmr_criterion: str, cnmr_criterion: str) -> np.ndarray:
     hnmr_spectrum = spectra[:28000]
     cnmr_spectrum = spectra[28000:28040]
@@ -42,7 +78,10 @@ def point_representation(representation_name: str,
                          cnmr_indices: np.ndarray,
                          hnmr_shifts: np.ndarray = None,
                          cnmr_shifts: np.ndarray = None,
-                         bins: np.ndarray = None) -> np.ndarray:
+                         hnmr_normalization_method: str = None,
+                         cnmr_normalization_method: str = None,
+                         bins: np.ndarray = None,
+                         sep_token: int = None) -> np.ndarray:
     """Transforms the spectrum into the desired representation for downstream tasks
     Args:
         representation_name: The name of the representation to use, currently the following are implemented:
@@ -56,19 +95,39 @@ def point_representation(representation_name: str,
         cnmr_indices: Numpy array of selected CNMR indices
         hnmr_shifts: Array of HNMR shifts. Required for 'continuous_pair' representation
         cnmr_shifts: Array of CNMR shifts. Required for 'continuous_pair' representation
+        hnmr_normalization_method: Method for normalizing the HNMR ppm values
+        cnmr_normalization_method: Method for normalizing the CNMR ppm values
         bins: np.ndarray, bin array to use for digitizing spectra
+        sep_token: int, a separator token optionally used for separating HNMR from CNMR data in 
+            an array. Defaults to None
     """
     if representation_name == 'tokenized_indices':
         assert(bins is not None)
-        all_indices = np.concatenate((hnmr_indices, cnmr_indices + 28000))
-        all_intensities = np.concatenate((hnmr_spectrum[hnmr_indices], cnmr_spectrum[cnmr_indices]))
-        tokenized_intensities = np.digitize(all_intensities, bins)
+        if sep_token is None:
+            all_indices = np.concatenate((hnmr_indices, cnmr_indices + 28000))
+            all_intensities = np.concatenate((hnmr_spectrum[hnmr_indices], cnmr_spectrum[cnmr_indices]))
+            tokenized_intensities = np.digitize(all_intensities, bins)
+        else:
+            #Add the separating token
+            assert(sep_token == len(bins) + 1)
+            all_indices = np.concatenate((hnmr_indices, [28000], cnmr_indices + 28001))
+            hnmr_intensities = np.digitize(hnmr_spectrum[hnmr_indices], bins)
+            cnmr_intensities = np.digitize(cnmr_spectrum[cnmr_indices], bins)
+            tokenized_intensities = np.concatenate((hnmr_intensities, [sep_token], cnmr_intensities))
         return np.vstack((tokenized_intensities, all_indices))
     elif representation_name == 'continuous_pair':
         assert((hnmr_shifts is not None) and (cnmr_shifts is not None))
         selected_hnmr_shifts = hnmr_shifts[hnmr_indices]
+        if hnmr_normalization_method is not None:
+            selected_hnmr_shifts = spectrum_ppm_normalization(selected_hnmr_shifts,
+                                                              hnmr_shifts,
+                                                              hnmr_normalization_method)
         selected_hnmr_intensities = hnmr_spectrum[hnmr_indices]
         selected_cnmr_shifts = cnmr_shifts[cnmr_indices]
+        if cnmr_normalization_method is not None:
+            selected_cnmr_shifts = spectrum_ppm_normalization(selected_cnmr_shifts,
+                                                              cnmr_shifts,
+                                                              cnmr_normalization_method)
         selected_cnmr_intensities = cnmr_spectrum[cnmr_indices]
         hnmr_pairs = np.vstack((selected_hnmr_shifts, selected_hnmr_intensities)).T
         cnmr_pairs = np.vstack((selected_cnmr_shifts, selected_cnmr_intensities)).T
@@ -253,6 +312,7 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
                  eps: float,
                  hnmr_selection: str = 'all_nonzero',
                  cnmr_selection: str = 'all_nonzero',
+                 add_hnmr_cnmr_spacing: bool = False,
                  nbins: int = 200):
         """
         Args:
@@ -266,6 +326,9 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
                 spectrum_extraction() for valid arguments
             cnmr_selection: The criterion to use for selecting CNMR peaks. See documentation for 
                 spectrum_extraction() for valid arguments
+            add_hnmr_cnmr_spacing: Whether to add a token between the HNMR and CNMR peaks to 
+                indicate a separation between the two. Defaults to False. The separating token is 
+                set to 
             nbins: The number of bins to use for digitizing the spectra
 
         Note: The additional arguments:
@@ -284,7 +347,15 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
         self.pad_token = 0 
         self.stop_token = None
         self.start_token = None
-        self.alphabet_size = nbins + 1
+        
+        #Account for addition of separating token
+        if add_hnmr_cnmr_spacing:
+            self.separator_token = nbins + 1
+            self.alphabet_size = nbins + 2
+        else:
+            self.separator_token = None
+            self.alphabet_size = nbins + 1
+
         self.bins = np.linspace(eps, 1, nbins)
         self.representation_name = 'tokenized_indices'
 
@@ -296,7 +367,8 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
                                                   cnmr_spectrum,
                                                   hnmr_indices,
                                                   cnmr_indices,
-                                                  bins=self.bins)
+                                                  bins=self.bins,
+                                                  sep_token=self.separator_token)
         processed_spectrum = apply_padding(self.representation_name, 
                                            processed_spectrum, 
                                            self.pad_token, 
@@ -314,7 +386,9 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
                  hnmr_selection: str = 'all_nonzero',
                  cnmr_selection: str = 'all_nonzero',
                  hnmr_shifts: str = None,
-                 cnmr_shifts: str = None):
+                 cnmr_shifts: str = None,
+                 hnmr_normalization: str = None,
+                 cnmr_normalization: str = None):
         """
         Args:
             spectra: Numpy array of all spectra
@@ -329,6 +403,14 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
                 spectrum_extraction() for valid arguments
             hnmr_shifts: Path to a file specifying the HNMR shift values
             cnmr_shifts: Path to a file specifying the CNMR shift values
+            hnmr_normalization: Method for normalizing the HNMR ppm values:
+                None: no normalization is performed
+                'uniform': ppm values are normalized to [0, 1]
+                'neg_uniform': ppm values are normalized to [-1, 0]
+                'first_half': ppm values are normalized to [0, 0.5]
+                'second_half': ppm values are normalized to [0.5, 1]
+            cnmr_normalization: Method for normalizing CNMR shift values. Same 
+                options as hnmr_normalization.
 
         Note: The additional arguments:
             hnmr_selection,
@@ -353,6 +435,8 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
         
         self.hnmr_criterion = hnmr_selection
         self.cnmr_criterion = cnmr_selection
+        self.hnmr_normalization = hnmr_normalization
+        self.cnmr_normalization = cnmr_normalization
         self.eps = eps
         self.max_hnmr_len, self.max_cnmr_len, self.max_len = look_ahead_spectra(spectra, self.hnmr_criterion, self.cnmr_criterion, self.eps)
         self.pad_token = -1000 
@@ -371,7 +455,9 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
                                                   hnmr_indices,
                                                   cnmr_indices,
                                                   hnmr_shifts=self.hnmr_shifts,
-                                                  cnmr_shifts=self.cnmr_shifts)
+                                                  cnmr_shifts=self.cnmr_shifts,
+                                                  hnmr_normalization_method=self.hnmr_normalization,
+                                                  cnmr_normalization_method=self.cnmr_normalization)
         processed_spectrum = apply_padding(self.representation_name,
                                            processed_spectrum,
                                            self.pad_token,
