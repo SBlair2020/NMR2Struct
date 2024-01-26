@@ -352,6 +352,7 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
         if add_hnmr_cnmr_spacing:
             self.separator_token = nbins + 1
             self.alphabet_size = nbins + 2
+            self.max_len += 1 #Add one here to account for separating token
         else:
             self.separator_token = None
             self.alphabet_size = nbins + 1
