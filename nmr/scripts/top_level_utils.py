@@ -160,15 +160,23 @@ def save_array_set(h5ptr: h5py.File,
     targets = [elem[0] for elem in preds]
     targets = np.concatenate(targets)
     predictions = [elem[1] for elem in preds]
-    smiles = [elem[2] for elem in preds]
-    smiles = np.concatenate(smiles)
+    #Store smiles as a 1D list of strings which interface better with 
+    #   h5py than Numpy's U-type string array which cannot be saved/converted
+    #   to an h5 file
+    smiles = []
+    for elem in preds:
+        smi_elem = elem[2]
+        if isinstance(smi_elem, list):
+            smiles.extend(smi_elem)
+        elif isinstance(smi_elem, str):
+            smiles.append(smi_elem)
     if isinstance(predictions[0], list):
         max_len = find_max_length(predictions)
         pad_token = 999_999
         predictions = [pad_single_prediction(elem, max_len, pad_token) for elem in predictions]
         group.create_dataset("additional_pad_token", data = pad_token)
     predictions = np.concatenate(predictions)
-    assert(targets.shape[0] == predictions.shape[0] == smiles.shape[0])
+    assert(targets.shape[0] == predictions.shape[0] == len(smiles))
     group.create_dataset("targets", data = targets)
     group.create_dataset("predictions", data = predictions)
     group.create_dataset("smiles", data = smiles)
@@ -243,7 +251,7 @@ def select_model(savedir: str,
     if not os.path.isfile(f"{savedir}/model_names_losses.pkl"):
         print("Deducing checkpoint losses from file names")
         all_files = os.listdir(savedir)
-        checkpoint_files = list(filter(lambda x : x.endswith('.pt'), all_files))
+        checkpoint_files = list(filter(lambda x : x.endswith('.pt') and x != 'RESTART_checkpoint.pt', all_files))
         model_names = [f"{savedir}/{f}" for f in checkpoint_files]
         best_losses = [extract_loss_val(f) for f in checkpoint_files]
     else:
