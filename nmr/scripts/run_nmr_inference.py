@@ -50,7 +50,8 @@ def main() -> None:
     dataset, updated_dataset_args = create_dataset(dataset_args, dtype, device)
     size_dict = dataset.get_sizes()
     token_dict = dataset.get_ctrl_tokens()
-    total_dict = {**size_dict, **token_dict}
+    max_len_dict = dataset.get_max_seq_len()
+    total_dict = {**size_dict, **token_dict, **max_len_dict}
     inference_args = specific_update(inference_args, total_dict)
     model_args = specific_update(model_args, total_dict)
     total_dict['seed'] = seed

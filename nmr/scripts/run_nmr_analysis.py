@@ -50,9 +50,11 @@ def main() -> None:
                 #   and targets together
                 collated_targets, collated_predictions, collated_smiles = collate_predictions(selected_handles)
                 #For all intents and purposes, substructures should be represented as binary 
-                #   arrays for metric calculations. If not, an inversion needs to be done on the 
-                #   sequences to turn them into fixed-length binary arrays.
-                if not np.allclose(np.unique(collated_predictions), np.array([0, 1])):
+                #   arrays for metric calculations. If the rounded predictions are not in the range [0, 1], 
+                #   an inversion needs to be done on the sequences to turn them into fixed-length binary arrays.
+                unique_rounded_elems = np.unique(collated_predictions.round())
+                if unique_rounded_elems.shape[0] != 2 or (not np.allclose(np.unique(collated_predictions.round()), np.array([0, 1]))):
+                    print("Inversion required")
                     assert('additional_pad_token' in selected_handles[0].keys())
                     all_pad_tokens = [h['additional_pad_token'][()] for h in selected_handles]
                     assert(len(np.unique(all_pad_tokens)) == 1)
