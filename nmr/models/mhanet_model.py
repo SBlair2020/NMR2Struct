@@ -10,7 +10,8 @@ class MHANetModel(nn.Module):
     def __init__(self, 
                  src_embed: str,
                  positional_encoding: Optional[str],
-                 forward_network: str, 
+                 forward_network: str,
+                 forward_network_opts: dict, 
                  src_pad_token: int,
                  src_forward_function: str,
                  source_size: int,
@@ -28,6 +29,8 @@ class MHANetModel(nn.Module):
             src_embed: String corresponding to the embedding module to use for the source sequence
             positional_encoding: String corresponding to the positional encoding module to use. 
             forward_network: Name of the NN design to use after the MHA module
+            forward_network_opts: Dictionary of additional options to pass to the forward network. Pass an 
+                empty dictionary for no additional options.
             src_pad_token: The index used to indicate padding in the source sequence
             src_forward_function: Name of the function that processes the src tensor using the src embedding, src pad token, and positional encoding to generate
                 the embedded src and the src_key_pad_mask
@@ -66,6 +69,7 @@ class MHANetModel(nn.Module):
             src_embed_module,
             positional_encoding_module,
             forward_network_module,
+            forward_network_opts,
             src_pad_token,
             src_forward_function,
             d_model,

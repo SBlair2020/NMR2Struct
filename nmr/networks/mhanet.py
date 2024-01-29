@@ -112,6 +112,7 @@ class MHANet(nn.Module):
                  src_embed: nn.Module,
                  positional_encoding: Optional[nn.Module],
                  forward_network: nn.Module, 
+                 forward_network_opts: dict,
                  src_pad_token: int,
                  src_forward_function: Callable[[Tensor, nn.Module, int, Optional[nn.Module]], tuple[Tensor, Optional[Tensor]]], 
                  d_model: int,
@@ -129,6 +130,8 @@ class MHANet(nn.Module):
                 in this module, but can be set to None to usee no positional encoding
             forward_network: The forward network that follows the MHA layer. Should take the d_model, d_out, d_feedforward, and max_seq_len arguments
                 on __init__
+            forward_network_opts: Dictionary of additional options to pass to the forward network. An empty dictionary is used to 
+                indicate no additional arguments. 
             src_pad_token: The index used to indicate padding in the source sequence
             src_forward_function: A function that processes the src tensor using the src embedding, src pad token, and positional encoding to generate
                 the embedded src and the src_key_pad_mask
@@ -154,7 +157,7 @@ class MHANet(nn.Module):
 
         self.pos_encoder = (lambda x : x) if positional_encoding is None else positional_encoding(d_model)
         self.mha = nn.MultiheadAttention(d_model, n_heads, batch_first = True)
-        self.ffnn = forward_network(d_model, d_out, d_feedforward, max_seq_len)
+        self.ffnn = forward_network(d_model, d_out, d_feedforward, max_seq_len, **forward_network_opts)
 
     def _sanitize_forward_args(self, x: tuple[Tensor, tuple[str]]) -> Tensor:
         #Unpack the tuple
