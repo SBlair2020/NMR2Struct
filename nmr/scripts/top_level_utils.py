@@ -218,8 +218,9 @@ def save_inference_predictions(savedir: str,
             save_fxn(f, test_predictions, 'test')
 
 def save_token_size_dict(savedir: str,
-                         token_size_dict: dict) -> None:
-    with open(f"{savedir}/token_size_dict.pkl", "wb") as f:
+                         token_size_dict: dict,
+                         savetag: str) -> None:
+    with open(f"{savedir}/{savetag}_token_size_dict.pkl", "wb") as f:
         pkl.dump(token_size_dict, f)
 
 def specific_update(mapping: dict[str, Any], update_map: dict[str, Any]) -> dict[str, Any]:

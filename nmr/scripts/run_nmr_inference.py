@@ -75,7 +75,7 @@ def main() -> None:
             'inference' : inference_args
         }
         save_completed_config('full_inference_config.yaml', tot_config, global_args['savedir'])
-        save_token_size_dict(global_args['savedir'], total_dict)
+        save_token_size_dict(global_args['savedir'], total_dict, 'inference')
 
     #Set up dataloaders
     train_set, val_set, test_set = split_data_subsets(dataset, 

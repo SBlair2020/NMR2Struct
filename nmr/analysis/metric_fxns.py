@@ -133,6 +133,20 @@ def compute_sequence_BCE_losses(predictions: np.ndarray,
     torch_preds, torch_targets = torch.from_numpy(predictions), torch.from_numpy(targets)
     return criterion(torch_preds, torch_targets).item()
 
+def get_root_powers_error(predictions: np.ndarray, 
+                          targets: np.ndarray, 
+                          n: int = 2):
+    '''Given predictions x and targets y, computes the following error metric:
+        (1/m * sum(|x - y|^n))^(1/n)
+    where m is the number of predictions and targets, and n is the root power
+
+    predictions shape: (n_samples, n_substructures)
+    targets shape: (n_samples, n_substructures)
+    '''
+    assert(predictions.shape == targets.shape)
+    x = np.mean(np.power(np.abs(predictions - targets), n))
+    return np.power(x, 1/n)
+
 def compute_total_substruct_metrics(predictions: np.ndarray,
                                     targets: np.ndarray) -> dict:
     '''
@@ -146,6 +160,9 @@ def compute_total_substruct_metrics(predictions: np.ndarray,
         - prc_auc_score
         - exact sequence match percent
         - avg sequence BCELoss (not per sub)
+        - root power for n = 2
+        - root power for n = 3
+        - root power for n = 4
     '''
     flat_tgt, flat_pred = targets.flatten(), predictions.flatten()
     substruct_losses = calc_loss_per_sub(predictions, targets)
@@ -160,6 +177,10 @@ def compute_total_substruct_metrics(predictions: np.ndarray,
 
     avg_seq_bce = compute_sequence_BCE_losses(predictions, targets)
 
+    root_power_2 = get_root_powers_error(predictions, targets, 2)
+    root_power_3 = get_root_powers_error(predictions, targets, 3)
+    root_power_4 = get_root_powers_error(predictions, targets, 4)
+
     return {
         'substruct_losses': substruct_losses,
         'substruct_avg_loss': np.mean(substruct_losses),
@@ -173,5 +194,8 @@ def compute_total_substruct_metrics(predictions: np.ndarray,
         'prc_auc_score': prc_auc_score,
         'fscore': fscore,
         'exact_seq_match_percent': exact_seq_match_percent,
-        'avg_seq_bce': avg_seq_bce
+        'avg_seq_bce': avg_seq_bce,
+        'root_power_2': root_power_2,
+        'root_power_3': root_power_3,
+        'root_power_4': root_power_4
     }

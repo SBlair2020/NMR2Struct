@@ -118,7 +118,7 @@ def main() -> None:
         'training' : training_args
     }
     save_completed_config('full_train_config.yaml', tot_config, global_args['savedir'])
-    save_token_size_dict(global_args['savedir'], total_dict)
+    save_token_size_dict(global_args['savedir'], total_dict, 'train')
 
     # Train
     print("Beginning training")
