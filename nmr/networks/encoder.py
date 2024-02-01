@@ -184,7 +184,7 @@ class EncoderNetwork(nn.Module):
             norm = None
         self.encoder = nn.TransformerEncoder(
             encoder_layer, 
-            num_layer=num_layers, 
+            num_layers=num_layers, 
             norm=norm,
             enable_nested_tensor=enable_nested_tensor
         )
