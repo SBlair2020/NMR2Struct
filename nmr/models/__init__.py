@@ -2,6 +2,7 @@ from .transformer_model import TransformerModel
 from .convolutional_model import ConvolutionalModel
 from .combined_model import CombinedModel
 from .mhanet_model import MHANetModel
+from .encoder_model import EncoderModel
 from .build_model import create_model
 
 def get_all_models():
