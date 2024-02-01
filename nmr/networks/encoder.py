@@ -198,10 +198,10 @@ class EncoderNetwork(nn.Module):
     def forward(self, x: tuple[Tensor, tuple[str]]) -> Tensor:
         src = self._sanitize_forward_args(x)
         src_embedded, src_key_pad_mask = self.src_fwd_fn(src, self.d_model, self.src_embed, self.src_pad_token, self.pos_encoder)
-        src = self.encoder(src=src,
-                           src_key_padding_mask=src_key_pad_mask)
-        src = self.pooler(src)
-        return self.output_head(src)
+        src_out = self.encoder(src=src_embedded,
+                               src_key_padding_mask=src_key_pad_mask)
+        src_out = self.pooler(src_out)
+        return self.output_head(src_out)
     
     def get_loss(self, 
                  x: tuple[Tensor, tuple[str]],
