@@ -151,31 +151,38 @@ def save_array_set(h5ptr: h5py.File,
     Args:
         h5ptr: The h5 file pointer to save to
         preds: The list of predictions, tuples of form ([tgt_i, ...], [pred_i, ...], [smiles_i, ...])
-            where each tgt_i and pred_i is a 2D array and smiles_i is a 1D array
+            where each tgt_i and pred_i is a 2D array and smiles_i is a 1D array. In the case where the targets
+            are a 1D array, the targets are expanded to 2D. A similar procedure is applied to the predictions. 
         savename: The name to save the predictions under
 
     padding is done on these arrays to ensure size consistency when saving to hdf5
     """
     group = h5ptr.create_group(savename)
     targets = [elem[0] for elem in preds]
-    targets = np.concatenate(targets)
+    targets = np.vstack(targets)
     predictions = [elem[1] for elem in preds]
     #Store smiles as a 1D list of strings which interface better with 
     #   h5py than Numpy's U-type string array which cannot be saved/converted
     #   to an h5 file
     smiles = []
+    #Process SMILES
     for elem in preds:
         smi_elem = elem[2]
         if isinstance(smi_elem, list):
             smiles.extend(smi_elem)
         elif isinstance(smi_elem, str):
             smiles.append(smi_elem)
+    #Process the predictions which may be lists of arrays
     if isinstance(predictions[0], list):
         max_len = find_max_length(predictions)
         pad_token = 999_999
-        predictions = [pad_single_prediction(elem, max_len, pad_token) for elem in predictions]
+        predictions = [
+            np.expand_dims(
+                pad_single_prediction(elem, max_len, pad_token), 
+                axis = 0) for elem in predictions
+        ]
         group.create_dataset("additional_pad_token", data = pad_token)
-    predictions = np.concatenate(predictions)
+    predictions = np.vstack(predictions)
     assert(targets.shape[0] == predictions.shape[0] == len(smiles))
     group.create_dataset("targets", data = targets)
     group.create_dataset("predictions", data = predictions)

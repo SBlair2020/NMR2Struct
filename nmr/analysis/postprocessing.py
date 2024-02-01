@@ -4,8 +4,13 @@ import os
 import pickle as pkl
 from nmr.analysis.util import count_num_heavy
 
-def collate_predictions(pred_sets: list[h5py.File]) -> tuple[np.ndarray, np.ndarray]:
-    """Combines all the targets and predictions together into one NP array each"""
+def collate_predictions(pred_sets: list[h5py.File],
+                        pad_tkn: int = None) -> tuple[np.ndarray, np.ndarray]:
+    """Combines all the targets and predictions together into one NP array each
+    
+    In the case that the predictions are not all the same length in the final dimension,
+    padding is performed using the given pad_tkn.
+    """
     all_targets = []
     all_predictions = []
     all_smiles = []
@@ -16,6 +21,19 @@ def collate_predictions(pred_sets: list[h5py.File]) -> tuple[np.ndarray, np.ndar
         all_targets.append(pset['targets'])
         all_predictions.append(pset['predictions'])
         all_smiles.append(pset['smiles'])
+    #Check prediction length in the last dimension
+    pred_lens = [p.shape[-1] for p in all_predictions]
+    if len(set(pred_lens)) > 1:
+        print("Uneven lengths detected, correcting!")
+        max_len = max(pred_lens)
+        for i in range(len(all_predictions)):
+            curr_len = all_predictions[i].shape[-1]
+            if curr_len < max_len:
+                pad_amt = max_len - curr_len
+                pad_shape = list(all_predictions[i].shape)
+                pad_shape[-1] = pad_amt
+                pad_arr = np.full(pad_shape, pad_tkn)
+                all_predictions[i] = np.concatenate([all_predictions[i], pad_arr], axis = -1)
     return np.concatenate(all_targets), np.concatenate(all_predictions), np.concatenate(all_smiles)
 
 def format_SMILES_preds_into_h5(f: h5py.File, 

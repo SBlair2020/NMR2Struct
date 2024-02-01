@@ -138,8 +138,18 @@ class PredictionView:
                 return self.file_handles[file_idx][idx - self.len_lower_bounds[file_idx-1]]
             
 ### Inversion methods for converting back to binary substructure arrays ###
-def convert_one_indexed_seq_to_binary(sequence: np.ndarray) -> np.ndarray:
+
+def wrap_inversion_2D(f: Callable[[np.ndarray], np.ndarray],
+                      padding_token: int,
+                      predictions: np.ndarray) -> np.ndarray:
+    '''Wraps a 2D inversion function to be applied to a 3D array of predictions'''
+    return np.array([f(p, padding_token) for p in predictions])
+
+def convert_one_indexed_seq_to_binary(sequence: np.ndarray, padding_token: int) -> np.ndarray:
     #Take care of 1-indexing during processing
+    sequence = sequence[sequence != padding_token]
+    #Remove start and stop tokens
+    sequence = sequence[1:-1]
     seq_shifted = sequence - 1 
     binary = np.zeros(957)
     binary[seq_shifted] = 1
@@ -160,8 +170,9 @@ def apply_substruct_invert_fxn(predictions: np.ndarray,
     inverted = []
     for i in range(len(predictions)):
         curr_pred = predictions[i]
-        if padding_token is not None:
-            curr_pred = curr_pred[curr_pred != padding_token]
-        inverted.append(inversion_fxn(curr_pred))
+        if curr_pred.ndim == 2:
+            inverted.append(wrap_inversion_2D(inversion_fxn, padding_token, curr_pred))
+        elif curr_pred.ndim == 1:
+            inverted.append(inversion_fxn(curr_pred, padding_token))
     assert(len(inverted) == len(predictions))
     return np.array(inverted)

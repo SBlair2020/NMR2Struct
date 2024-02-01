@@ -46,9 +46,14 @@ def main() -> None:
         with h5py.File(os.path.join(global_args['savedir'], 'combined_predictions.h5'), 'w') as save_handle:
             for set_name in all_sets:
                 selected_handles = [f[set_name] for f in file_handles]
+                if 'additional_pad_token' in selected_handles[0].keys():
+                    addn_pad_token = selected_handles[0]['additional_pad_token'][()]
+                else:
+                    addn_pad_token = None
                 #Gather predictions together because the metrics are computed over all predictions
                 #   and targets together
-                collated_targets, collated_predictions, collated_smiles = collate_predictions(selected_handles)
+                collated_targets, collated_predictions, collated_smiles = collate_predictions(selected_handles,
+                                                                                              pad_tkn = addn_pad_token)
                 #For all intents and purposes, substructures should be represented as binary 
                 #   arrays for metric calculations. If the rounded predictions are not in the range [0, 1], 
                 #   an inversion needs to be done on the sequences to turn them into fixed-length binary arrays.
@@ -65,9 +70,12 @@ def main() -> None:
                                                                       inversion_fxn=inversion_fxn,
                                                                       padding_token=pad_token)
 
-
-                result_dict[set_name] = process_substructure_predictions(collated_predictions,
-                                                                        collated_targets)
+                try:
+                    result_dict[set_name] = process_substructure_predictions(collated_predictions,
+                                                                            collated_targets)
+                except Exception as e:
+                    print(f"Error processing {set_name}: {e}")
+                    result_dict[set_name] = "Could not process substructure predictions for this model"
                 #Save the collated predictions and targets to the open h5 file pointer
                 set_group = save_handle.create_group(set_name)
                 set_group.create_dataset('targets', data = collated_targets)
