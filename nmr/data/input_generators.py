@@ -136,21 +136,40 @@ def point_representation(representation_name: str,
 def apply_padding(representation_name: str, 
                   processed_spectrum: np.ndarray,
                   padding_value: int,
-                  max_len: int) -> np.ndarray:
+                  max_len: int,
+                  padding_variation: str = 'zeros') -> np.ndarray:
     """Applies padding to the processed spectrum using the given padding value
     Args:
         representation_name: The name of the representation to use, consistent with point_representation()
         processed_spectrum: The processed spectrum to pad
         padding_value: The value to use for padding
         max_len: The maximum length to pad to
+        padding_variation: How padding is done for the tokenized case. 'zeros' pads with zeros while 
+            'complement' pads with the complement of the sequence up to the desired length. Applied to the 
+            index portion of the tokenized representation input. Defaults to 'zeros'.
+            Note that the 'complement' padding variation assumes a maximum length of 28040.
     """
     if representation_name == 'tokenized_indices':
-        return np.pad(
-            processed_spectrum,
-            ((0, 0), (0, max_len - processed_spectrum.shape[1])),
-            'constant',
-            constant_values = (padding_value,)
-        )
+        if padding_variation == 'zeros':
+            return np.pad(
+                processed_spectrum,
+                ((0, 0), (0, max_len - processed_spectrum.shape[1])),
+                'constant',
+                constant_values = (padding_value,)
+            )
+        elif padding_variation == 'complement':
+            all_inds = set(np.arange(28040))
+            index_values = set(processed_spectrum[1])
+            complement = np.sort(list(all_inds - index_values))[:max_len - processed_spectrum.shape[1]]
+            padding = np.vstack(
+                (np.zeros(len(complement)),
+                complement)
+            )
+            return np.hstack(
+                (processed_spectrum, padding)
+            )
+        else:
+            raise ValueError("Unsupported padding variation!")
     elif representation_name == 'continuous_pair':
         return np.vstack((
             processed_spectrum, np.ones((max_len - processed_spectrum.shape[0], 2)) * padding_value
@@ -313,6 +332,7 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
                  hnmr_selection: str = 'all_nonzero',
                  cnmr_selection: str = 'all_nonzero',
                  add_hnmr_cnmr_spacing: bool = False,
+                 padding_variation: str = 'zeros', 
                  nbins: int = 200):
         """
         Args:
@@ -329,6 +349,12 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
             add_hnmr_cnmr_spacing: Whether to add a token between the HNMR and CNMR peaks to 
                 indicate a separation between the two. Defaults to False. The separating token is 
                 set to 
+            padding_variation: How padding is done on the sequence. 'zeros' pads with zeros, 
+                but 'complement' pads with the complement of the sequence. For instance, suppose a sequence:
+                    [1, 3, 5]
+                and padding to a maximum length of 5. The complement of the sequence is the set of ordered indices
+                [0, max_len - 1], and elements are appended from this complement to achieve the target length:
+                    [1,3,5] --> [1, 3, 5, 0, 2]
             nbins: The number of bins to use for digitizing the spectra
 
         Note: The additional arguments:
@@ -347,6 +373,7 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
         self.pad_token = 0 
         self.stop_token = None
         self.start_token = None
+        self.padding_variation = padding_variation
         
         #Account for addition of separating token
         if add_hnmr_cnmr_spacing:
@@ -373,7 +400,8 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
         processed_spectrum = apply_padding(self.representation_name, 
                                            processed_spectrum, 
                                            self.pad_token, 
-                                           self.max_len)  
+                                           self.max_len,
+                                           padding_variation=self.padding_variation)  
         return processed_spectrum
     
 class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
