@@ -99,10 +99,20 @@ def save_train_history(savedir: str, loss_obj: tuple[list, ...]) -> None:
     """
     train_losses, val_losses, test_losses, model_names, best_losses = loss_obj
     print("Saving losses")
-    with h5py.File(f"{savedir}/losses.h5", "w") as f:
-        f.create_dataset("train_losses", data = train_losses)
-        f.create_dataset("val_losses", data = val_losses)
-        f.create_dataset("test_losses", data = test_losses)
+    if not os.path.isfile(f"{savedir}/losses.h5"):
+        with h5py.File(f"{savedir}/losses.h5", "w") as f:
+            f.create_dataset("train_losses", data = train_losses)
+            f.create_dataset("val_losses", data = val_losses)
+            f.create_dataset("test_losses", data = test_losses)
+    else:
+        with h5py.File(f"{savedir}/losses.h5", 'r') as f:
+            prev_train_losses = f['train_losses'][()]
+            prev_val_losses = f['val_losses'][()]
+            prev_test_losses = f['test_losses'][()]
+        with h5py.File(f"{savedir}/losses.h5", 'w') as f:
+            f.create_dataset("train_losses", data = np.concatenate([prev_train_losses, train_losses]))
+            f.create_dataset("val_losses", data = np.concatenate([prev_val_losses, val_losses]))
+            f.create_dataset("test_losses", data = np.concatenate([prev_test_losses, test_losses]))
     
     with open(f"{savedir}/model_names_losses.pkl", "wb") as f:
         pkl.dump((model_names, best_losses), f)
