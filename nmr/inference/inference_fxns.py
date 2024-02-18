@@ -12,12 +12,23 @@ def infer_basic_model(model: nn.Module,
     Args: 
         model: The model to use for inference
         input: The input to the model
-        opts: Options to pass to the model as a dictionary, can be empty here
+        opts: Options to pass to the model as a dictionary, should specify gradient tracking 
+            behavior through value 'track_gradients'. If a dictionary is not provided,
+            the default behavior is to track gradients
     """
     x, y = batch
     target = y[0]
-    with torch.no_grad():
-        output = model(x)
+    #Need additional logic around gradient tracking for modules associated with the 
+    #   transformer because it seems behavior can change depending on the no_grad() context
+    if opts is None:
+        track_gradients = False #Default option
+    elif (opts is not None) and ('track_gradients' in opts):
+        track_gradients = opts['track_gradients']
+    if track_gradients:
+        output = model(x, y)
+    else:
+        with torch.no_grad():
+            output = model(x)
     #Also save x[1] which is the set of SMILES strings
     #   Note that even for a batch size of 1, the batch smiles element
     #   returned by a dataloader is a tuple of the form (str,) which converts
@@ -105,7 +116,7 @@ def infer_transformer_model(model: nn.Module,
                 print(f"On iteration {iter_counter}")
             
             if track_gradients:
-                next_pos = model((working_x, None), (working_y, None))
+                next_pos = model((working_x, None), (working_y, None)).detach()
             else:
                 with torch.no_grad():
                     next_pos = model((working_x, None), (working_y, None))

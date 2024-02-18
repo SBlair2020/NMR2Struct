@@ -62,15 +62,14 @@ def validation_loop(model: nn.Module,
     """
     tot_loss = 0
     model.eval()
-    with torch.no_grad():
-        for ibatch, (x, y) in enumerate(dataloader):
-            inner_step = int(( epoch * len(dataloader)) + ibatch)
-            loss = model.get_loss(x,y,loss_fn) 
-            if (ibatch % write_freq == 0):
-                print(f"Epoch: {epoch}\tBatch:{ibatch}\tValidation Loss:{loss.item()}")
-            tot_loss += loss.item()
-            writer.add_scalar("Validation Step Loss", loss.item(), inner_step)
-        writer.add_scalar("Avg. Epoch Validation Loss", tot_loss / len(dataloader), epoch)
+    for ibatch, (x, y) in enumerate(dataloader):
+        inner_step = int(( epoch * len(dataloader)) + ibatch)
+        loss = model.get_loss(x,y,loss_fn).detach()
+        if (ibatch % write_freq == 0):
+            print(f"Epoch: {epoch}\tBatch:{ibatch}\tValidation Loss:{loss.item()}")
+        tot_loss += loss.item()
+        writer.add_scalar("Validation Step Loss", loss.item(), inner_step)
+    writer.add_scalar("Avg. Epoch Validation Loss", tot_loss / len(dataloader), epoch)
     return tot_loss / len(dataloader)
 
 def test_loop(model: nn.Module, 
@@ -91,15 +90,14 @@ def test_loop(model: nn.Module,
     """
     tot_loss = 0
     model.eval()
-    with torch.no_grad():
-        for ibatch, (x, y) in enumerate(dataloader):
-            inner_step = int(( epoch * len(dataloader)) + ibatch)
-            loss = model.get_loss(x,y,loss_fn) 
-            if (ibatch % write_freq == 0):
-                print(f"Epoch: {epoch}\tBatch:{ibatch}\Test Loss:{loss.item()}")
-            tot_loss += loss.item()
-            writer.add_scalar("Test Step Loss", loss.item(), inner_step)
-        writer.add_scalar("Avg. Epoch Test Loss", tot_loss / len(dataloader), epoch)
+    for ibatch, (x, y) in enumerate(dataloader):
+        inner_step = int(( epoch * len(dataloader)) + ibatch)
+        loss = model.get_loss(x,y,loss_fn).detach()
+        if (ibatch % write_freq == 0):
+            print(f"Epoch: {epoch}\tBatch:{ibatch}\Test Loss:{loss.item()}")
+        tot_loss += loss.item()
+        writer.add_scalar("Test Step Loss", loss.item(), inner_step)
+    writer.add_scalar("Avg. Epoch Test Loss", tot_loss / len(dataloader), epoch)
     return tot_loss / len(dataloader)
 
 def save_model(model: nn.Module, 
