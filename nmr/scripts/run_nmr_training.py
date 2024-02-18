@@ -5,6 +5,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import argparse
 import yaml
+import os
 from nmr.data import create_dataset
 from nmr.models import create_model
 from nmr.training import create_optimizer, fit
@@ -47,6 +48,9 @@ def main() -> None:
     device = torch.device('cuda:0' if global_args['ngpus'] > 0 else 'cpu')
     dtype = dtype_convert(global_args['dtype'])
     seed = seed_everything(global_args['seed'])
+
+    if not os.path.isdir(global_args['savedir']):
+        os.makedirs(global_args['savedir'])
 
     print("Initializing dataset, model, optimizer, loss, and scheduler...")
     # Set up dataset, model, optimizer, loss, and scheduler
