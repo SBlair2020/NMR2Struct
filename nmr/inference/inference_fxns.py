@@ -22,8 +22,11 @@ def infer_basic_model(model: nn.Module,
     #   transformer because it seems behavior can change depending on the no_grad() context
     if opts is None:
         track_gradients = False #Default option
-    elif (opts is not None) and ('track_gradients' in opts):
-        track_gradients = opts['track_gradients']
+    elif (opts is not None):
+        if 'track_gradients' in opts:
+            track_gradients = opts['track_gradients']
+        else:
+            track_gradients = False
     if track_gradients:
         output = model(x, y)
     else:
