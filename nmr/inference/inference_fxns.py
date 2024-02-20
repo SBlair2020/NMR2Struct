@@ -28,7 +28,7 @@ def infer_basic_model(model: nn.Module,
         else:
             track_gradients = False
     if track_gradients:
-        output = model(x, y)
+        output = model(x)
     else:
         with torch.no_grad():
             output = model(x)
