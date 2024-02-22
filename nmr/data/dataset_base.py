@@ -107,8 +107,8 @@ class NMRDataset(Dataset):
     
     def __getitem__(self, idx):
         if self.front_load_data_processing:
-            model_input = self.preprocessed_model_inputs[idx]
-            model_target = self.preprocessed_model_targets[idx]
+            model_input = self.preprocessed_model_inputs[idx].to(self.device)
+            model_target = self.preprocessed_model_targets[idx].to(self.device)
             return (model_input, self.smiles[idx]), model_target
         else:
             spectra_data = self.spectra[idx]
