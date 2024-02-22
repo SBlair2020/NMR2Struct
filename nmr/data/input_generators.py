@@ -16,14 +16,43 @@ def threshold_spectra(spectra: np.ndarray, eps: float) -> np.ndarray:
     spectra[spectra < eps] = 0
     return spectra
 
-def spectrum_extraction(spectrum: np.ndarray, criterion: str) -> np.ndarray:
-    """Extracts the indices from a spectrum based on the given criterion"""
+def peaks_with_radius(spectrum: np.ndarray, radius: int) -> np.ndarray:
+    """Selects points based on a radius value around peaks.
+
+    Args:
+        spectrum: The array of intensities to select peaks from 
+        radius: The radius to use for point selection about peaks
+    
+    This function first uses find_peaks to select out peaks and then includes indices within the radius,
+    i.e. i - radius <= x <= i + radius, where i is the peak index and x is the index of the point.
+    Because these peaks are expanded to segments that could potentially overlap, we explicitly remove 
+    duplicates. 
+    """
+    peaks, _ = find_peaks(spectrum)
+    #+1 to include the upper bound
+    all_intervals = [np.arange(i - radius, i + radius + 1) for i in peaks]
+    unique_sorted = np.unique(np.concatenate(all_intervals))
+    return unique_sorted[(unique_sorted >= 0) & (unique_sorted < len(spectrum))]
+
+def spectrum_extraction(spectrum: np.ndarray, criterion: str, radius: int = None) -> np.ndarray:
+    """Extracts the indices from a spectrum based on the given criterion
+    
+    Args:
+        spectrum: The array of intensities to select peaks from
+        criterion: The method of peak selection
+        radius: The radius to use for criterion 'peaks_with_radius'. Defaults to 
+            None, and should not be used by any generator besides the threshold tokenized
+            or threshold pairs representations.
+    """
     if criterion == 'all_nonzero':
         indices = np.where(spectrum > 0)[0]
     elif criterion == 'find_peaks':
         indices, _ = find_peaks(spectrum)
     elif criterion == 'binary':
         indices = np.where(spectrum == 1)[0]
+    elif criterion == 'peaks_with_radius':
+        assert(radius is not None)
+        indices = peaks_with_radius(spectrum, radius)
     else:
         raise ValueError("Invalid criterion for spectrum extraction")
     return indices
@@ -64,11 +93,11 @@ def spectrum_ppm_normalization(selected_ppm: np.ndarray,
     return (unif_ppms * (b - a)) + a
 
 
-def select_points(spectra: np.ndarray, hnmr_criterion: str, cnmr_criterion: str) -> np.ndarray:
+def select_points(spectra: np.ndarray, hnmr_criterion: str, hnmr_radius: int, cnmr_criterion: str) -> np.ndarray:
     hnmr_spectrum = spectra[:28000]
     cnmr_spectrum = spectra[28000:28040]
-    hnmr_indices = spectrum_extraction(hnmr_spectrum, hnmr_criterion)   
-    cnmr_indices = spectrum_extraction(cnmr_spectrum, cnmr_criterion)
+    hnmr_indices = spectrum_extraction(hnmr_spectrum, hnmr_criterion, hnmr_radius)   
+    cnmr_indices = spectrum_extraction(cnmr_spectrum, cnmr_criterion, None)
     return hnmr_spectrum, cnmr_spectrum, hnmr_indices, cnmr_indices
 
 def point_representation(representation_name: str,
@@ -176,7 +205,8 @@ def apply_padding(representation_name: str,
         ))
 
 def look_ahead_spectra(spectra: np.ndarray, 
-                       hnmr_criterion: str, 
+                       hnmr_criterion: str,
+                       hnmr_radius: int, 
                        cnmr_criterion: str,
                        eps: float) -> int:
     """Determines the maximum number of peaks for padding"""
@@ -186,6 +216,7 @@ def look_ahead_spectra(spectra: np.ndarray,
     for i in range(len(spectra)):
         _, _, hnmr_indices, cnmr_indices = select_points(threshold_spectra(spectra[i], eps), 
                                                          hnmr_criterion, 
+                                                         hnmr_radius,
                                                          cnmr_criterion)
         max_hnmr_len = max(max_hnmr_len, len(hnmr_indices)) 
         max_cnmr_len = max(max_cnmr_len, len(cnmr_indices))
@@ -330,6 +361,7 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
                  alphabet: np.ndarray,
                  eps: float,
                  hnmr_selection: str = 'all_nonzero',
+                 hnmr_radius: int = None,
                  cnmr_selection: str = 'all_nonzero',
                  add_hnmr_cnmr_spacing: bool = False,
                  padding_variation: str = 'zeros', 
@@ -344,6 +376,8 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
             eps: Epsilon value for thresholding spectra
             hnmr_selection: The criterion to use for selecting HNMR peaks. See documentation for 
                 spectrum_extraction() for valid arguments
+            hnmr_radius: The radius to use for criterion 'peaks_with_radius' when selecting points from the 
+                hnmr spectrum around peaks. Defaults to None
             cnmr_selection: The criterion to use for selecting CNMR peaks. See documentation for 
                 spectrum_extraction() for valid arguments
             add_hnmr_cnmr_spacing: Whether to add a token between the HNMR and CNMR peaks to 
@@ -367,9 +401,10 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
         """
         
         self.hnmr_criterion = hnmr_selection
+        self.hnmr_radius = hnmr_radius
         self.cnmr_criterion = cnmr_selection
         self.eps = eps
-        self.max_hnmr_len, self.max_cnmr_len, self.max_len = look_ahead_spectra(spectra, self.hnmr_criterion, self.cnmr_criterion, self.eps)
+        self.max_hnmr_len, self.max_cnmr_len, self.max_len = look_ahead_spectra(spectra, self.hnmr_criterion, self.hnmr_radius, self.cnmr_criterion, self.eps)
         self.pad_token = 0 
         self.stop_token = None
         self.start_token = None
@@ -389,7 +424,7 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
 
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
         spectra = threshold_spectra(spectra, self.eps)
-        hnmr_spectrum, cnmr_spectrum, hnmr_indices, cnmr_indices = select_points(spectra, self.hnmr_criterion, self.cnmr_criterion)
+        hnmr_spectrum, cnmr_spectrum, hnmr_indices, cnmr_indices = select_points(spectra, self.hnmr_criterion, self.hnmr_radius, self.cnmr_criterion)
         processed_spectrum = point_representation(self.representation_name,
                                                   hnmr_spectrum,
                                                   cnmr_spectrum,
@@ -413,6 +448,7 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
                  alphabet: np.ndarray,
                  eps: float,
                  hnmr_selection: str = 'all_nonzero',
+                 hnmr_radius: int = None,
                  cnmr_selection: str = 'all_nonzero',
                  hnmr_shifts: str = None,
                  cnmr_shifts: str = None,
@@ -428,6 +464,8 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
             eps: Epsilon value for thresholding spectra
             hnmr_selection: The criterion to use for selecting HNMR peaks. See documentation for 
                 spectrum_extraction() for valid arguments
+            hnmr_radius: The radius to use for criterion 'peaks_with_radius' when selecting points from the 
+                hnmr spectrum around peaks. Defaults to None
             cnmr_selection: The criterion to use for selecting CNMR peaks. See documentation for 
                 spectrum_extraction() for valid arguments
             hnmr_shifts: Path to a file specifying the HNMR shift values
@@ -465,9 +503,10 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
         self.hnmr_criterion = hnmr_selection
         self.cnmr_criterion = cnmr_selection
         self.hnmr_normalization = hnmr_normalization
+        self.hnmr_radius = hnmr_radius
         self.cnmr_normalization = cnmr_normalization
         self.eps = eps
-        self.max_hnmr_len, self.max_cnmr_len, self.max_len = look_ahead_spectra(spectra, self.hnmr_criterion, self.cnmr_criterion, self.eps)
+        self.max_hnmr_len, self.max_cnmr_len, self.max_len = look_ahead_spectra(spectra, self.hnmr_criterion, self.hnmr_radius, self.cnmr_criterion, self.eps)
         self.pad_token = -1000 
         self.stop_token = None
         self.start_token = None
@@ -477,7 +516,7 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
 
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
         spectra = threshold_spectra(spectra, self.eps)
-        hnmr_spectrum, cnmr_spectrum, hnmr_indices, cnmr_indices = select_points(spectra, self.hnmr_criterion, self.cnmr_criterion)
+        hnmr_spectrum, cnmr_spectrum, hnmr_indices, cnmr_indices = select_points(spectra, self.hnmr_criterion, self.hnmr_radius, self.cnmr_criterion)
         processed_spectrum = point_representation(self.representation_name,
                                                   hnmr_spectrum,
                                                   cnmr_spectrum,
