@@ -82,8 +82,8 @@ class NMRDataset(Dataset):
                 label_data = self.labels[i]
                 model_input = self.input_generator.transform(spectra_data, smiles_data, label_data)
                 model_target = self.target_generator.transform(spectra_data, smiles_data, label_data)
-                model_input = torch.from_numpy(model_input).to(self.dtype).to(self.device)
-                model_target = tuple([torch.from_numpy(elem).to(self.dtype).to(self.device) for elem in model_target])
+                model_input = torch.from_numpy(model_input).to(self.dtype)
+                model_target = tuple([torch.from_numpy(elem).to(self.dtype) for elem in model_target])
                 self.preprocessed_model_inputs.append(model_input)
                 self.preprocessed_model_targets.append(model_target)
 
