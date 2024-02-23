@@ -149,7 +149,15 @@ def infer_transformer_model(model: nn.Module,
         for elem in completed_structures:
             assert(elem is not None)
         if decode:
-            generated_smiles = [''.join(np.array(alphabet)[elem[1:-1].astype(int)]) for elem in completed_structures]
+            generated_smiles = []
+            for elem in completed_structures:
+                try:
+                    curr_smi = ''.join(np.array(alphabet)[elem[1:-1].astype(int)])
+                    generated_smiles.append(curr_smi)
+                except Exception as e:
+                    print(e)
+                    generated_smiles.append('')
+            #generated_smiles = [''.join(np.array(alphabet)[elem[1:-1].astype(int)]) for elem in completed_structures]
             curr_batch_predictions.append(generated_smiles)
         else:
             curr_batch_predictions.append(completed_structures)
