@@ -43,7 +43,10 @@ def compute_molecule_BCE(predictions: list[list[chem.Mol]],
             try:
                 curr_pred_strs.append(chem.CanonSmiles(chem.MolToSmiles(p)))
             except:
-                curr_pred_strs.append(chem.MolToSmiles(p))
+                try:
+                    curr_pred_strs.append(chem.MolToSmiles(p))
+                except:
+                    curr_pred_strs.append("MolToSmilesFailed")
         pred_losses = list(zip(curr_pred_strs, losses))
         #Sort by loss value so best prediction is first
         pred_losses.sort(key = lambda x: x[1])
