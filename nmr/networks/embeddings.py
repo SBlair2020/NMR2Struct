@@ -73,7 +73,7 @@ class ConvolutionalEmbedding(nn.Module):
         super().__init__()
         self.n_spectral_features = 28000
         self.n_Cfeatures = 40
-        self.c_embed = nn.Embedding(self.n_Cfeatures, d_model, padding_idx=0)
+        self.c_embed = nn.Embedding(self.n_Cfeatures + 1, d_model, padding_idx=0)
         self.post_conv_transform = nn.Linear(128, d_model)
 
         #Kernel size = 5, Filters (out channels) = 64, in channels = 1
@@ -84,6 +84,7 @@ class ConvolutionalEmbedding(nn.Module):
         self.conv2 = nn.Conv1d(64, 128, 9, stride = 1, padding = 'valid')
         #Max pool of size 20 with stride 20
         self.pool2 = nn.MaxPool1d(20)
+        self.relu = nn.ReLU()
 
     def _separate_spectra_components(self, x: Tensor):
         if len(x.shape) == 2:
@@ -101,10 +102,13 @@ class ConvolutionalEmbedding(nn.Module):
         if cnmr.ndim == 3:
             cnmr = cnmr.squeeze(1)
         indices = torch.arange(0, self.n_Cfeatures) + 1
+        indices = indices.to(cnmr.dtype).to(cnmr.device)
         cnmr = cnmr * indices
         cnmr[cnmr == 0] = 100
         cnmr = torch.sort(cnmr).values
         cnmr[cnmr == 100] = 0
+        #print(torch.max(cnmr))
+        #print(torch.min(cnmr))
         return self.c_embed(cnmr.long())
 
     def _embed_spectra(self, spectra: Tensor):
@@ -122,6 +126,6 @@ class ConvolutionalEmbedding(nn.Module):
         spectra, cnmr, mol = self._separate_spectra_components(x)   
         cnmr_embed = self._embed_cnmr(cnmr)
         spectra_embed = self._embed_spectra(spectra)
-        print(spectra_embed.shape)
-        print(cnmr_embed.shape)
+        #print(spectra_embed.shape)
+        #print(cnmr_embed.shape)
         return torch.cat((spectra_embed, cnmr_embed), dim = 1)
