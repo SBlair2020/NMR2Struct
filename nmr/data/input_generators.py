@@ -34,6 +34,15 @@ def peaks_with_radius(spectrum: np.ndarray, radius: int) -> np.ndarray:
     unique_sorted = np.unique(np.concatenate(all_intervals))
     return unique_sorted[(unique_sorted >= 0) & (unique_sorted < len(spectrum))]
 
+def peaks_and_minima(spectrum: np.ndarray) -> np.ndarray:
+    """Selects peaks and minima from the spectrum
+    The minima are found by flipping the spectral intensities (multiplying by -1) and then
+    finding the peaks again. Overlaps are checked, i.e. a peak cannot be a minimum and vice versa.
+    """
+    peaks, _ = find_peaks(spectrum)
+    minima, _ = find_peaks(-spectrum)
+    return np.sort(np.concatenate((peaks, minima)))
+
 def spectrum_extraction(spectrum: np.ndarray, criterion: str, radius: int = None) -> np.ndarray:
     """Extracts the indices from a spectrum based on the given criterion
     
@@ -53,6 +62,10 @@ def spectrum_extraction(spectrum: np.ndarray, criterion: str, radius: int = None
     elif criterion == 'peaks_with_radius':
         assert(radius is not None)
         indices = peaks_with_radius(spectrum, radius)
+    elif criterion == 'peaks_and_minima':
+        #Select out peaks and the minima that are interspersed between them
+        indices = peaks_and_minima(spectrum)
+        pass
     else:
         raise ValueError("Invalid criterion for spectrum extraction")
     return indices
@@ -91,7 +104,6 @@ def spectrum_ppm_normalization(selected_ppm: np.ndarray,
     else:
         raise ValueError("Unsupported normalization scheme")
     return (unif_ppms * (b - a)) + a
-
 
 def select_points(spectra: np.ndarray, hnmr_criterion: str, hnmr_radius: int, cnmr_criterion: str) -> np.ndarray:
     hnmr_spectrum = spectra[:28000]

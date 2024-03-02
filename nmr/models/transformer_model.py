@@ -50,12 +50,16 @@ class TransformerModel(nn.Module):
 
         if src_embed == 'mlp':
             src_embed_layer = embeddings.ProbabilityEmbedding(d_model)
+        elif src_embed == 'single_linear': 
+            src_embed_layer = embeddings.SingleLinear(d_model)
         elif src_embed == 'matrix_scale':
             src_embed_layer = embeddings.MatrixScaleEmbedding(d_model, source_size)
         elif src_embed == 'spectra_continuous':
             src_embed_layer = embeddings.NMRContinuousEmbedding(d_model)
         elif src_embed == 'nn.embed':
             src_embed_layer = nn.Embedding(source_size, d_model, padding_idx = src_pad_token)
+        elif src_embed == 'convolutional':
+            src_embed_layer = embeddings.ConvolutionalEmbedding(d_model)
         elif src_embed is None: 
             src_embed_layer = None
         else:

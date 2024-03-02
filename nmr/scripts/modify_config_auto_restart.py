@@ -45,6 +45,8 @@ def main() -> None:
     completed_epochs = checkpoint['epoch'] + 1
     current_config['training']['prev_epochs'] = completed_epochs
     current_config['model']['load_model'] = checkpoint_path 
+    #Allow loading the optimizer if restarting training
+    current_config['model']['load_optimizer'] = True
     print("Saving modified configuration file and overwriting...")
     save_completed_config(config_filename,
                           current_config,

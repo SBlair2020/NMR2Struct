@@ -52,6 +52,35 @@ def src_fwd_fxn_basic(src: Tensor,
     src = pos_encoder(src, None)
     return src, src_key_pad_mask
 
+def src_fwd_fxn_conv_embedding(src: Tensor,
+                               d_model: int,
+                               src_embed: nn.Module,
+                               src_pad_token: int,
+                               pos_encoder: nn.Module) -> Tuple[Tensor, Optional[Tensor]]:
+    """Forward processing for the source tensor where the input is an unprocessed spectrum
+    This forward function is only to be used with the convolutional source embedding. It has hard-coded values
+    to allow for all shapes to line up with the current spectrum representation
+    Args:
+        src: The unembedded source tensor, in this case representing a spectrum, (batch_size, seq_len)
+        d_model: The dimensionality of the model
+        src_embed: The source embedding layer
+        src_pad_token: The source padding token index. In the case of this forward function, it is 
+            hard-coded to 0
+        pos_encoder: The positional encoder layer
+    """
+    assert(src_embed is not None)
+    cnmr_start = 28000
+    cnmr_end = 28040
+    cnmr = src[:, cnmr_start:cnmr_end]
+    assert(cnmr.shape[-1] == 40)
+    sorted_cnmr = torch.sort(cnmr, dim = -1, descending=True).values
+    cnmr_key_pad_mask = (sorted_cnmr == 0).bool().to(src.device)
+    src_key_pad_mask = torch.zeros(src.shape[0], 116).bool()
+    src_key_pad_mask = torch.cat((src_key_pad_mask, cnmr_key_pad_mask), dim = -1)
+    src_embedded = src_embed(src) * math.sqrt(d_model)
+    src_embedded = pos_encoder(src_embedded, None)
+    return src_embedded, src_key_pad_mask
+
 def src_fwd_fxn_spectra_tokenized(src: Tensor,
                                   d_model: int,
                                   src_embed: nn.Module,
