@@ -59,7 +59,14 @@ class MHANetModel(nn.Module):
                 device=device
             )
         elif src_embed == 'spectra_continuous':
+            #Add in options to src_embed_options to allow this embedding to handle triplets of points
             src_embed_module = embeddings.NMRContinuousEmbedding(d_model, **src_embed_options)
+        elif src_embed == 'nn.embed_typed':
+            src_embed_module = embeddings.NNEmbedWithTypeFeature(
+                source_size,
+                d_model,
+                padding_idx = src_pad_token
+            )
         else:
             raise ValueError("Unsupported source embedding")
 

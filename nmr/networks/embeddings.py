@@ -45,14 +45,14 @@ class MatrixScaleEmbedding(nn.Module):
     
 class NMRContinuousEmbedding(nn.Module):
 
-    def __init__(self, d_model: int, num_heads: int = 1):
+    def __init__(self, d_model: int, num_heads: int = 1, input_dim: int = 2):
         '''
         For implementation simplicity, only use one head for now,
             extending to multiple heads is trivial.
         '''
         super().__init__()
         self.heads = nn.ModuleList([
-            nn.Linear(2, d_model // num_heads) for _ in range(num_heads)
+            nn.Linear(input_dim, d_model // num_heads) for _ in range(num_heads)
         ])
     
     def forward(self, x):
@@ -62,6 +62,24 @@ class NMRContinuousEmbedding(nn.Module):
         '''
         out = [head(x) for head in self.heads]
         return torch.cat(out, dim = -1)
+    
+class NNEmbedWithTypeFeature(nn.Module):
+    """Embedding layer for spectral source data that includes a type feature
+       denoting whether the point came from CNMR or HNMR
+    """
+    def __init__(self, source_size: int, d_model: int, padding_idx: int):
+        super().__init__()
+        self.intensity_embed = nn.Embedding(source_size, d_model, padding_idx = padding_idx)
+        #Type embedding: 1 for HNMR, 2 for CNMR, and 3 for separating token (if present). 
+        #   0 remains consistent as padding
+        self.type_embed = nn.Embedding(4, d_model, padding_idx = padding_idx)
+    
+    def forward(self, x: Tensor) -> Tensor:
+        '''
+        x: (batch_size, 3, seq_len)
+        '''
+        src, src_type = x[:,0,:], x[:,-1,:]
+        return self.intensity_embed(src) + self.type_embed(src_type)
     
 class ConvolutionalEmbedding(nn.Module):
     

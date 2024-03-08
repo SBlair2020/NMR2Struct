@@ -98,10 +98,33 @@ def src_fwd_fxn_spectra_tokenized(src: Tensor,
         pos_encoder: The positional encoder layer
     """
     assert(src.shape[1] == 2)
+    src = src.long()
     src_unembedded, src_inds = src[:,0,:], src[:,1,:]
     src_embedded = src_embed(src_unembedded) * math.sqrt(d_model)
     src_embedded = pos_encoder(src_embedded, src_inds)
     src_key_pad_mask = (src_unembedded == src_pad_token).bool().to(src_unembedded.device)
+    return src_embedded, src_key_pad_mask
+
+def src_fwd_fxn_spectra_tokenized_with_type(src: Tensor,
+                                            d_model: int,
+                                            src_embed: nn.Module,
+                                            src_pad_token: int,
+                                            pos_encoder: nn.Module) -> Tuple[Tensor, Optional[Tensor]]:
+    """Forward processing for source tensor in Transformer + MHANet with tokenized spectra and type information
+    Args:
+        src: The unembedded source tensor, raw input into the forward() method, shape 
+            (batch_size, 3, seq_len)
+        d_model: The dimensionality of the model
+        src_embed: The source embedding layer
+        src_pad_token: The source padding token index
+        pos_encoder: The positional encoder layer
+    """
+    assert(src.shape[1] == 3)
+    src = src.long()
+    src_inds = src[:,1,:]
+    src_embedded = src_embed(src) * math.sqrt(d_model)
+    src_embedded = pos_encoder(src_embedded, src_inds)
+    src_key_pad_mask = (src[:,0,:] == src_pad_token).bool().to(src.device)
     return src_embedded, src_key_pad_mask
 
 def src_fwd_fxn_spectra_continuous(src: Tensor, 
@@ -118,7 +141,7 @@ def src_fwd_fxn_spectra_continuous(src: Tensor,
         src_pad_token: The source padding token index
         pos_encoder: The positional encoder layer
     """
-    assert(src.shape[2] == 2)
+    assert(src.shape[2] == 2 or src.shape[2] == 3)
     src_key_pad_mask = (src[:,:,0] == src_pad_token).bool().to(src.device)
     src_embedded = src_embed(src) * math.sqrt(d_model)
     src_embedded = pos_encoder(src_embedded, None)

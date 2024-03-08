@@ -122,7 +122,8 @@ def point_representation(representation_name: str,
                          hnmr_normalization_method: str = None,
                          cnmr_normalization_method: str = None,
                          bins: np.ndarray = None,
-                         sep_token: int = None) -> np.ndarray:
+                         sep_token: int = None,
+                         add_type_feature: bool = False) -> np.ndarray:
     """Transforms the spectrum into the desired representation for downstream tasks
     Args:
         representation_name: The name of the representation to use, currently the following are implemented:
@@ -141,6 +142,18 @@ def point_representation(representation_name: str,
         bins: np.ndarray, bin array to use for digitizing spectra
         sep_token: int, a separator token optionally used for separating HNMR from CNMR data in 
             an array. Defaults to None
+        add_type_feature: bool, whether to add a type feature to the representation. Defaults to False. 
+    
+    Notes: A type feature is an additional indicator which specifies where the data point comes from, i.e.
+        HNMR or CNMR. This is useful for the transformer model to distinguish between the two types of data.
+        In the tokenized case, the type feature is an integer with.
+        For tokenized case:
+            HNMR: 1
+            CNMR: 2
+            Separator: 3
+        For continuous case: 
+            HNMR: 1
+            CNMR: 0
     """
     if representation_name == 'tokenized_indices':
         assert(bins is not None)
@@ -155,7 +168,19 @@ def point_representation(representation_name: str,
             hnmr_intensities = np.digitize(hnmr_spectrum[hnmr_indices], bins)
             cnmr_intensities = np.digitize(cnmr_spectrum[cnmr_indices], bins)
             tokenized_intensities = np.concatenate((hnmr_intensities, [sep_token], cnmr_intensities))
-        return np.vstack((tokenized_intensities, all_indices))
+        intermediate = np.vstack((tokenized_intensities, all_indices))
+        if add_type_feature:
+            if sep_token is None:
+                hnmr_type_feature = np.ones_like(hnmr_indices)
+                cnmr_type_feature = np.ones_like(cnmr_indices) * 2
+            else:
+                #Add 3 here for the separating token that appears at the end of 
+                #   HNMR and before CNMR
+                hnmr_type_feature = np.concatenate((np.ones_like(hnmr_indices), np.array([3])))
+                cnmr_type_feature = np.ones_like(cnmr_indices) * 2
+            type_feature = np.concatenate((hnmr_type_feature, cnmr_type_feature))
+            intermediate = np.vstack((intermediate, type_feature))
+        return intermediate
     elif representation_name == 'continuous_pair':
         assert((hnmr_shifts is not None) and (cnmr_shifts is not None))
         selected_hnmr_shifts = hnmr_shifts[hnmr_indices]
@@ -172,6 +197,11 @@ def point_representation(representation_name: str,
         selected_cnmr_intensities = cnmr_spectrum[cnmr_indices]
         hnmr_pairs = np.vstack((selected_hnmr_shifts, selected_hnmr_intensities)).T
         cnmr_pairs = np.vstack((selected_cnmr_shifts, selected_cnmr_intensities)).T
+        if add_type_feature:
+            hnmr_type_feature = np.ones((len(hnmr_pairs), 1))
+            cnmr_type_feature = np.zeros((len(cnmr_pairs), 1))
+            hnmr_pairs = np.hstack((hnmr_pairs, hnmr_type_feature))
+            cnmr_pairs = np.hstack((cnmr_pairs, cnmr_type_feature))
         return np.vstack((hnmr_pairs, cnmr_pairs))
 
 def apply_padding(representation_name: str, 
@@ -213,7 +243,7 @@ def apply_padding(representation_name: str,
             raise ValueError("Unsupported padding variation!")
     elif representation_name == 'continuous_pair':
         return np.vstack((
-            processed_spectrum, np.ones((max_len - processed_spectrum.shape[0], 2)) * padding_value
+            processed_spectrum, np.ones((max_len - processed_spectrum.shape[0], processed_spectrum.shape[-1])) * padding_value
         ))
 
 def look_ahead_spectra(spectra: np.ndarray, 
@@ -376,6 +406,7 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
                  hnmr_radius: int = None,
                  cnmr_selection: str = 'all_nonzero',
                  add_hnmr_cnmr_spacing: bool = False,
+                 add_type_feature: bool = False,
                  padding_variation: str = 'zeros', 
                  nbins: int = 200):
         """
@@ -395,6 +426,8 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
             add_hnmr_cnmr_spacing: Whether to add a token between the HNMR and CNMR peaks to 
                 indicate a separation between the two. Defaults to False. The separating token is 
                 set to 
+            add_type_feature: Whether to add an additional token indicating where the spectrum originated from,
+                either HNMR or CNMR. Defaults to False
             padding_variation: How padding is done on the sequence. 'zeros' pads with zeros, 
                 but 'complement' pads with the complement of the sequence. For instance, suppose a sequence:
                     [1, 3, 5]
@@ -421,6 +454,7 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
         self.stop_token = None
         self.start_token = None
         self.padding_variation = padding_variation
+        self.add_type_feature = add_type_feature
         
         #Account for addition of separating token
         if add_hnmr_cnmr_spacing:
@@ -443,7 +477,8 @@ class SpectrumRepresentationThresholdTokenized(InputGeneratorBase):
                                                   hnmr_indices,
                                                   cnmr_indices,
                                                   bins=self.bins,
-                                                  sep_token=self.separator_token)
+                                                  sep_token=self.separator_token,
+                                                  add_type_feature=self.add_type_feature)
         processed_spectrum = apply_padding(self.representation_name, 
                                            processed_spectrum, 
                                            self.pad_token, 
@@ -465,7 +500,8 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
                  hnmr_shifts: str = None,
                  cnmr_shifts: str = None,
                  hnmr_normalization: str = None,
-                 cnmr_normalization: str = None):
+                 cnmr_normalization: str = None,
+                 add_type_feature: bool = False):
         """
         Args:
             spectra: Numpy array of all spectra
@@ -490,6 +526,8 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
                 'second_half': ppm values are normalized to [0.5, 1]
             cnmr_normalization: Method for normalizing CNMR shift values. Same 
                 options as hnmr_normalization.
+            add_type_feature: Whether to add an additional value indicating where the spectrum originated from,
+                either HNMR or CNMR. Defaults to False
 
         Note: The additional arguments:
             hnmr_selection,
@@ -525,6 +563,7 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
         #Not relevant for this representation
         self.alphabet_size = self.max_len
         self.representation_name = 'continuous_pair'
+        self.add_type_feature = add_type_feature
 
     def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> np.ndarray:
         spectra = threshold_spectra(spectra, self.eps)
@@ -537,7 +576,8 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
                                                   hnmr_shifts=self.hnmr_shifts,
                                                   cnmr_shifts=self.cnmr_shifts,
                                                   hnmr_normalization_method=self.hnmr_normalization,
-                                                  cnmr_normalization_method=self.cnmr_normalization)
+                                                  cnmr_normalization_method=self.cnmr_normalization,
+                                                  add_type_feature=self.add_type_feature)
         processed_spectrum = apply_padding(self.representation_name,
                                            processed_spectrum,
                                            self.pad_token,
