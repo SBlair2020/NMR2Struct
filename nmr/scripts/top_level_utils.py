@@ -132,9 +132,11 @@ def save_str_set(h5ptr: h5py.File,
     """
     targets = [elem[0] for elem in preds]
     predictions = [elem[1] for elem in preds]
+    scores = [elem[-1] for elem in preds]
     group = h5ptr.create_group(savename)
     group.create_dataset("targets", data = targets)
     group.create_dataset("predictions", data = predictions)
+    group.create_dataset("scores", data = np.array(scores))
 
 def find_max_length(preds: list[list[np.ndarray]]) -> int:
     flattened_preds = list(reduce(lambda x, y : x + y, preds))
@@ -197,6 +199,7 @@ def save_array_set(h5ptr: h5py.File,
     group.create_dataset("targets", data = targets)
     group.create_dataset("predictions", data = predictions)
     group.create_dataset("smiles", data = smiles)
+    group.create_dataset("scores", data=np.array([elem[-1] for elem in preds]))
 
 def save_inference_predictions(savedir: str,
                                train_predictions: list,

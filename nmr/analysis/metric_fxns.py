@@ -21,6 +21,7 @@ def calc_sub_BCE(true_labels: np.ndarray,
 
 def compute_molecule_BCE(predictions: list[list[chem.Mol]],
                          targets: list[str],
+                         scores: list[list[float]],
                          substructures: list[chem.Mol]) -> tuple[list[str], list[list[tuple[str, float]]]]:
     """Computes molecule BCEs for a set of sanitized predictions and targets
     Args:
@@ -35,6 +36,7 @@ def compute_molecule_BCE(predictions: list[list[chem.Mol]],
         targ_mol = chem.MolFromSmiles(targ)
         saved_targets.append(targ)
         curr_pred = predictions[i_str]
+        curr_scores = scores[i_str]
         true_subs = mols_to_labels([targ_mol], substructures)[0]
         current_profs = mols_to_labels(curr_pred, substructures)
         losses = calc_sub_BCE(true_subs, current_profs)
@@ -47,7 +49,7 @@ def compute_molecule_BCE(predictions: list[list[chem.Mol]],
                     curr_pred_strs.append(chem.MolToSmiles(p))
                 except:
                     curr_pred_strs.append("MolToSmilesFailed")
-        pred_losses = list(zip(curr_pred_strs, losses))
+        pred_losses = list(zip(curr_pred_strs, losses, curr_scores))
         #Sort by loss value so best prediction is first
         pred_losses.sort(key = lambda x: x[1])
         preds_and_losses.append(pred_losses)

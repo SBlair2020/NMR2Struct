@@ -40,11 +40,13 @@ def format_SMILES_preds_into_h5(f: h5py.File,
                          good_targets: list[str],
                          preds_with_losses: list[list[tuple[str, float]]],
                          bad_targets: list[str],
-                         bad_predictions: list[list[str]]) -> None:
+                         bad_predictions: list[list[str]],
+                         bad_scores: list[list[float]]) -> None:
     #Save the bad predictions as a concatenated 2D array to save space
     bad_grp = f.create_group('bad_predictions')
     bad_grp.create_dataset('targets', data = bad_targets)
     bad_grp.create_dataset('predictions', data = np.array(bad_predictions))
+    bad_grp.create_dataset('scores', data=np.array(bad_scores))
     #Generate a separate entry for each good prediction
     good_grp = f.create_group('valid_predictions')
     for i in range(len(good_targets)):
@@ -52,6 +54,7 @@ def format_SMILES_preds_into_h5(f: h5py.File,
         curr_pred = preds_with_losses[i]
         pred_strings = [x[0] for x in curr_pred]
         pred_losses = [x[1] for x in curr_pred]
+        pred_scores = [x[2] for x in curr_pred]
 
         #Saving predictions separately gets around the issue of ragged 2D arrays
         pred_grp = good_grp.create_group(f'{i}')
@@ -59,6 +62,7 @@ def format_SMILES_preds_into_h5(f: h5py.File,
         pred_grp.create_dataset('prediction_strings', data = pred_strings)
         pred_grp.create_dataset('prediction_bce_losses', data = pred_losses)
         pred_grp.create_dataset('num_heavy_atoms', data = count_num_heavy(curr_targ))
+        pred_grp.create_dataset('prediction_scores', data=pred_scores)
 
 def postprocess_save_SMILES_results(f: h5py.File,
                                     savename: str,
@@ -87,17 +91,20 @@ def postprocess_save_SMILES_results(f: h5py.File,
     preds_with_losses = []
     bad_targets = []
     bad_predictions = []
+    bad_scores = []
     #Gather everything together
     for result in processed_results:
         good_targets.extend(result[0])
         preds_with_losses.extend(result[1])
         bad_targets.extend(result[2])
         bad_predictions.extend(result[3])
+        bad_scores.extend(result[4])
     format_SMILES_preds_into_h5(group, 
                                 good_targets, 
                                 preds_with_losses, 
                                 bad_targets, 
-                                bad_predictions)
+                                bad_predictions,
+                                bad_scores)
 
 def postprocess_save_substructure_results(savedir: str,
                                           metrics_dict: dict) -> None:

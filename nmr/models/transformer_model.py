@@ -6,8 +6,11 @@ from typing import Tuple, Callable, Optional, Any
 class TransformerModel(nn.Module):
     """ Example model wrapper for transformer network """
 
-    def __init__(self, src_embed: str, 
+    def __init__(self, 
+                 src_embed: str, 
+                 src_embed_options: dict,
                  tgt_embed: str, 
+                 tgt_embed_options: dict,
                  src_pad_token: int, 
                  tgt_pad_token: int,
                  src_forward_function: str, 
@@ -32,7 +35,9 @@ class TransformerModel(nn.Module):
         r"""Most parameters are standard for the PyTorch transformer class. A few specific ones that have been added:
 
         src_embed: The name of the embedding module for the src tensor passed to the model
+        src_embed_options: Dictionary of options for the src embedding module
         tgt_embed: The name of the embedding module for the tgt tensor passed to the model
+        tgt_embed_options: Dictionary of options for the tgt embedding module
         src_pad_token: The index used to indicate padding in the source sequence
         tgt_pad_token: The index used to indicate padding in the target sequence
         src_forward_function: Name of the function that processes the src tensor using the src embedding, src pad token, and positional encoding to generate
@@ -49,17 +54,17 @@ class TransformerModel(nn.Module):
         super().__init__()
 
         if src_embed == 'mlp':
-            src_embed_layer = embeddings.ProbabilityEmbedding(d_model)
+            src_embed_layer = embeddings.ProbabilityEmbedding(d_model, **src_embed_options)
         elif src_embed == 'single_linear': 
-            src_embed_layer = embeddings.SingleLinear(d_model)
+            src_embed_layer = embeddings.SingleLinear(d_model, **src_embed_options)
         elif src_embed == 'matrix_scale':
-            src_embed_layer = embeddings.MatrixScaleEmbedding(d_model, source_size)
+            src_embed_layer = embeddings.MatrixScaleEmbedding(d_model, source_size, **src_embed_options)
         elif src_embed == 'spectra_continuous':
-            src_embed_layer = embeddings.NMRContinuousEmbedding(d_model)
+            src_embed_layer = embeddings.NMRContinuousEmbedding(d_model, **src_embed_options)
         elif src_embed == 'nn.embed':
             src_embed_layer = nn.Embedding(source_size, d_model, padding_idx = src_pad_token)
         elif src_embed == 'convolutional':
-            src_embed_layer = embeddings.ConvolutionalEmbedding(d_model)
+            src_embed_layer = embeddings.ConvolutionalEmbedding(d_model, **src_embed_options)
         elif src_embed is None: 
             src_embed_layer = None
         else:

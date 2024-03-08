@@ -36,14 +36,16 @@ def run_process_parallel(f: Callable,
     for pset in pred_sets:
         assert('targets' in pset.keys())
         assert('predictions' in pset.keys())
+        assert('scores' in pset.keys())
         #Divide by the number of processes
         target_chunks = np.array_split(pset['targets'], num_processes)
         pred_chunks = np.array_split(pset['predictions'], num_processes)
+        score_chunks = np.array_split(pset['scores'], num_processes)
 
         pool = Pool(processes = num_processes)
         results = []
         for i in range(num_processes):
-            results.append(pool.apply_async(f, args = (pred_chunks[i], target_chunks[i]), kwds = f_addn_args))
+            results.append(pool.apply_async(f, args = (pred_chunks[i], target_chunks[i], score_chunks[i]), kwds = f_addn_args))
         
         pool.close()
         pool.join()
@@ -54,6 +56,7 @@ def run_process_parallel(f: Callable,
 
 def process_SMILES_predictions(predictions: np.ndarray,
                                targets: np.ndarray,
+                               scores: np.ndarray,
                                substructures: str = None) -> tuple[
                                    list[str], list[list[tuple[str, float]]],
                                    list[str], list[list[str]]
@@ -68,14 +71,16 @@ def process_SMILES_predictions(predictions: np.ndarray,
     For paralle processing, the substructures kwarg should be provided
     '''
     #Sanitize to obtain the good + bad targets and predictions
-    (good_targets, good_predictions), (bad_targets, bad_predictions) = sanitize_prediction_set(predictions,
-                                                                                               targets)
+    (good_targets, good_predictions, good_scores), (bad_targets, bad_predictions, bad_scores) = sanitize_prediction_set(predictions,
+                                                                                                                        targets,
+                                                                                                                        scores)
     substructure_strings = np.load(substructures, allow_pickle = True)
     substruct_mols = construct_substructure_mols(substructure_strings)
     good_targets, preds_with_losses = compute_molecule_BCE(good_predictions,
                                                       good_targets,
+                                                      good_scores,
                                                       substruct_mols)
-    return good_targets, preds_with_losses, bad_targets, bad_predictions
+    return good_targets, preds_with_losses, bad_targets, bad_predictions, bad_scores
 
 def process_substructure_predictions(predictions: np.ndarray,
                                      targets: np.ndarray) -> dict:

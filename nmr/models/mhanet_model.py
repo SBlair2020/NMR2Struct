@@ -9,6 +9,7 @@ class MHANetModel(nn.Module):
 
     def __init__(self, 
                  src_embed: str,
+                 src_embed_options: dict,
                  positional_encoding: Optional[str],
                  forward_network: str,
                  forward_network_opts: dict, 
@@ -27,6 +28,7 @@ class MHANetModel(nn.Module):
 
         Args:
             src_embed: String corresponding to the embedding module to use for the source sequence
+            src_embed_options: Dictionary of additional arguments for the sourc embedding module
             positional_encoding: String corresponding to the positional encoding module to use. 
             forward_network: Name of the NN design to use after the MHA module
             forward_network_opts: Dictionary of additional options to pass to the forward network. Pass an 
@@ -57,7 +59,7 @@ class MHANetModel(nn.Module):
                 device=device
             )
         elif src_embed == 'spectra_continuous':
-            src_embed_module = embeddings.NMRContinuousEmbedding(d_model)
+            src_embed_module = embeddings.NMRContinuousEmbedding(d_model, **src_embed_options)
         else:
             raise ValueError("Unsupported source embedding")
 

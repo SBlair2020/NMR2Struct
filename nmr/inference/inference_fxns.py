@@ -44,7 +44,7 @@ def infer_basic_model(model: nn.Module,
     )]
 
 def get_top_k_sample_batched(k_val: int | float , 
-                             character_probabilities: Tensor) -> Tensor:
+                             character_probabilities: Tensor) -> tuple[Tensor, Tensor]:
     """
     Generates the next character using top-k sampling scheme.
 
@@ -66,7 +66,8 @@ def get_top_k_sample_batched(k_val: int | float ,
     if len(top_indices.shape) != len(selected_index.shape):
         top_indices = top_indices.reshape(selected_index.shape[0], -1)
     output = torch.gather(top_indices, -1, selected_index)
-    return output
+    output_token_probs = torch.gather(tot_probs, -1, selected_index)
+    return output, output_token_probs
 
 def infer_transformer_model(model: nn.Module, 
                         batch: torch.Tensor, 
@@ -92,6 +93,7 @@ def infer_transformer_model(model: nn.Module,
     """
     x, y = batch
     curr_batch_predictions = []
+    curr_batch_sequence_scores = []
     effective_bsize = x[0].shape[0]
     targets = y[1]
     smiles = x[1]
@@ -105,11 +107,15 @@ def infer_transformer_model(model: nn.Module,
     decode = opts['decode']
 
     for _ in range(num_pred_per_tgt):
-
+        
+        #Changing quantities
         working_x = x[0].clone()
         working_y = torch.tensor([start_token] * effective_bsize).reshape(effective_bsize, 1).to(device)
+        working_token_probs = torch.tensor([]).to(device)
 
+        #Accumulating quantities
         completed_structures = [None] * effective_bsize
+        completed_token_probs = [None] * effective_bsize
         index_mapping = torch.arange(effective_bsize, device = device, dtype = torch.long)
         all_structures_completed = False
         iter_counter = 0
@@ -126,26 +132,43 @@ def infer_transformer_model(model: nn.Module,
             
             next_val = next_pos[:, -1, :]
             char_probs = torch.nn.functional.softmax(next_val, dim = -1)
-            selected_indices = get_top_k_sample_batched(sample_val, char_probs)
+            selected_indices, token_probs = get_top_k_sample_batched(sample_val, char_probs)
+
             concatenated_results = torch.cat((working_y, selected_indices), dim = -1)
+            concatenated_token_probs = torch.cat((working_token_probs, token_probs), dim = -1)
+
             stop_token_mask = concatenated_results[:, -1] == stop_token
             comp_structs = concatenated_results[stop_token_mask]
+            comp_probs = concatenated_token_probs[stop_token_mask]
+
             comp_inds = index_mapping[stop_token_mask]
             for i, ind in enumerate(comp_inds):
                 completed_structures[ind] = comp_structs[i].detach().cpu().numpy()
+                completed_token_probs[ind] = comp_probs[i].detach().cpu().numpy()
+            
             working_y = concatenated_results[~stop_token_mask]
             working_x = working_x[~stop_token_mask]
+            working_token_probs = concatenated_token_probs[~stop_token_mask]
             index_mapping = index_mapping[~stop_token_mask]
+
             if working_y.shape[-1] > 1000:
                 working_y = torch.cat((working_y,
                                        torch.tensor([stop_token] * working_y.shape[0]).reshape(-1, 1).to(device)), 
                                        dim = -1)
+                #Add this in so slicing off the stop token is easy
+                working_token_probs = torch.cat((working_token_probs,
+                                                    torch.tensor([0.0] * working_y.shape[0]).reshape(-1, 1).to(device)),
+                                                    dim = -1)
                 for j, ind in enumerate(index_mapping):
                     completed_structures[ind] = working_y[j].detach().cpu().numpy()
+                    completed_token_probs[ind] = working_token_probs[j].detach().cpu().numpy()
                 all_structures_completed = True
+            
             if len(working_y) == 0:
                 all_structures_completed = True
+            
             iter_counter += 1
+
         for elem in completed_structures:
             assert(elem is not None)
         if decode:
@@ -157,11 +180,20 @@ def infer_transformer_model(model: nn.Module,
                 except Exception as e:
                     print(e)
                     generated_smiles.append('')
-            #generated_smiles = [''.join(np.array(alphabet)[elem[1:-1].astype(int)]) for elem in completed_structures]
             curr_batch_predictions.append(generated_smiles)
         else:
             curr_batch_predictions.append(completed_structures)
         
+        #Compute the scores of the sequences, either SMILES or otherwise. 
+        #The scores are computed as the sum of the log probabilities of the tokens 
+        #composing the sequence
+        scores = []
+        for i, elem in enumerate(completed_token_probs):
+            assert(len(elem[:-1]) == len(completed_structures[i]) - 2)
+            score = np.log(elem[:-1]).sum()
+            scores.append(score)
+        curr_batch_sequence_scores.append(scores)
+
     #Final processing
     # print(targets.shape[0])
     # print(len(curr_batch_predictions))
@@ -174,6 +206,7 @@ def infer_transformer_model(model: nn.Module,
         generated_predictions.append((
             smiles[i] if decode else targets[i].detach().cpu().numpy(),
             list(curr_batch_predictions[j][i] for j in range(num_pred_per_tgt)),
-            smiles[i]
+            smiles[i],
+            list(curr_batch_sequence_scores[j][i] for j in range(num_pred_per_tgt))
         ))
     return generated_predictions

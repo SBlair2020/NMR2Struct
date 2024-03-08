@@ -75,10 +75,12 @@ def src_fwd_fxn_conv_embedding(src: Tensor,
     assert(cnmr.shape[-1] == 40)
     sorted_cnmr = torch.sort(cnmr, dim = -1, descending=True).values
     cnmr_key_pad_mask = (sorted_cnmr == 0).bool().to(src.device)
-    src_key_pad_mask = torch.zeros(src.shape[0], 116).bool().to(src.device)
+    src_key_pad_mask = torch.zeros(src.shape[0], 
+                                   src_embed.h_spectrum_final_seq_len).bool().to(src.device)
     src_key_pad_mask = torch.cat((src_key_pad_mask, cnmr_key_pad_mask), dim = -1)
     src_embedded = src_embed(src) * math.sqrt(d_model)
-    src_embedded = pos_encoder(src_embedded, None)
+    if src_embed.add_pos_encoder:
+        src_embedded = pos_encoder(src_embedded, None)
     return src_embedded, src_key_pad_mask
 
 def src_fwd_fxn_spectra_tokenized(src: Tensor,

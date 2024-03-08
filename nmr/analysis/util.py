@@ -50,11 +50,13 @@ def sanitize_smiles(smi: str) -> chem.Mol | None:
         return None
     
 def sanitize_single_pred(target: str,
-                         predictions: np.ndarray) -> tuple[tuple[str, list[chem.Mol]] | None, bool]:
+                         predictions: np.ndarray,
+                         scores: np.ndarray) -> tuple[tuple[str, list[chem.Mol]] | None, bool]:
     """Performs sanitization of SMILES strings and returns a tuple of the target and valid molecules or None if the SMILES string is invalid
     Args:
     targets: set of target smiles strings
     predictions: set of predicted smiles strings
+    scores: set of scores for the predictions
 
     Note: The strings are all expected to be byte strings loaded from an h5 file,
         so they must be decoded using utf-8 first. The function returns the original
@@ -63,17 +65,20 @@ def sanitize_single_pred(target: str,
     target = target.decode('utf-8')
     predictions = [p.decode('utf-8') for p in predictions]
     valid_predictions = []
-    for pred in predictions:
+    valid_scores = []
+    for i, pred in enumerate(predictions):
         sanitize_result = sanitize_smiles(pred)
         if sanitize_result is not None:
             valid_predictions.append(sanitize_result)
+            valid_scores.append(scores[i])
     if len(valid_predictions) == 0:
-        return target, predictions, False
+        return target, predictions, scores, False
     else:
-        return target, valid_predictions, True
+        return target, valid_predictions, valid_scores, True
 
 def sanitize_prediction_set(predictions: np.ndarray,
-                            targets: np.ndarray) -> tuple[
+                            targets: np.ndarray,
+                            scores: np.ndarray) -> tuple[
                                 tuple[list[str], list[list[chem.Mol]]],
                                 tuple[list[str], list[list[str]]]
                                 ]:
@@ -82,26 +87,31 @@ def sanitize_prediction_set(predictions: np.ndarray,
 
     predictions: 2D array of all predicted smiles strings
     targets: 1D array of all target smiles strings
+    scores: 2D array of scores corresponding to predictions
 
-    Returns good predictions and bad predictions
+    Returns good predictions and bad predictions, along with associated scores
 
     Can be run in parallel via multiprocessing
     """
     assert(len(predictions) == len(targets))
     good_targets = []
     good_predictions = []
+    good_scores = []
     bad_targets = []
     bad_predictions = []
+    bad_scores = []
     for i in range(len(targets)):
-        curr_tgt, curr_pred = targets[i], predictions[i]
-        curr_tgt, valid_predictions, processed = sanitize_single_pred(curr_tgt, curr_pred)
+        curr_tgt, curr_pred, curr_score = targets[i], predictions[i], scores[i]
+        curr_tgt, valid_predictions, valid_scores, processed = sanitize_single_pred(curr_tgt, curr_pred, curr_score)
         if processed:
             good_targets.append(curr_tgt)
             good_predictions.append(valid_predictions)
+            good_scores.append(valid_scores)
         else:
             bad_targets.append(curr_tgt)
             bad_predictions.append(curr_pred)
-    return (good_targets, good_predictions), (bad_targets, bad_predictions)
+            bad_scores.append(curr_score)
+    return (good_targets, good_predictions, good_scores), (bad_targets, bad_predictions, bad_scores)
 
 def intake_data(savedir: str, 
                 pattern: str) -> list[np.ndarray]:

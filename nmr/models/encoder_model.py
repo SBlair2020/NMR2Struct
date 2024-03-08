@@ -7,6 +7,7 @@ class EncoderModel(nn.Module):
     
     def __init__(self,
                  src_embed: str,
+                 src_embed_options: dict,
                  src_pad_token: int, 
                  src_forward_function: str,
                  pooler: str,
@@ -35,11 +36,11 @@ class EncoderModel(nn.Module):
         string values are meant to be names of the compnents to be fetched using getattr"""
         super().__init__()
         if src_embed == 'mlp':
-            src_embed_layer = embeddings.ProbabilityEmbedding(d_model)
+            src_embed_layer = embeddings.ProbabilityEmbedding(d_model, **src_embed_options)
         elif src_embed == 'matrix_scale':
-            src_embed_layer = embeddings.MatrixScaleEmbedding(d_model, source_size)
+            src_embed_layer = embeddings.MatrixScaleEmbedding(d_model, source_size, **src_embed_options)
         elif src_embed == 'spectra_continuous':
-            src_embed_layer = embeddings.NMRContinuousEmbedding(d_model)
+            src_embed_layer = embeddings.NMRContinuousEmbedding(d_model, **src_embed_options)
         elif src_embed == 'nn.embed':
             src_embed_layer = nn.Embedding(source_size, d_model, padding_idx = src_pad_token)
         elif src_embed is None:
