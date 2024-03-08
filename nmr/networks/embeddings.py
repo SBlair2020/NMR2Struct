@@ -85,7 +85,7 @@ class ConvolutionalEmbedding(nn.Module):
     
     def __init__(self, 
                  d_model: int,
-                 pool_variation: str,
+                 pool_variation: str = 'max',
                  pool_size_1: int = 12,
                  out_channels_1: int = 64,
                  kernel_size_1: int = 5,
@@ -147,6 +147,9 @@ class ConvolutionalEmbedding(nn.Module):
              (kernel_size_2, pool_size_2, pool_variation)]
         )
         self.add_pos_encoder = add_pos_encode
+
+        print("Final sequence length after conv embedding:")
+        print(self.h_spectrum_final_seq_len)
     
     #From https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html
     def _calculate_dim_after_conv(self, 

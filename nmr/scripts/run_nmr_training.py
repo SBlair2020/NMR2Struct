@@ -77,6 +77,7 @@ def main() -> None:
     model.to(dtype).to(device)
     
     print("Total number of trainable parameters", sum(p.numel() for p in model.parameters() if p.requires_grad))
+    print(model)
 
     optimizer = create_optimizer(model, updated_model_args, training_args, dtype, device)
     loss_fn = getattr(loss_fxns, training_args['loss_fn'])
