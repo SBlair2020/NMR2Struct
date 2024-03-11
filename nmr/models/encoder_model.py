@@ -44,7 +44,7 @@ class EncoderModel(nn.Module):
         elif src_embed == 'nn.embed':
             src_embed_layer = nn.Embedding(source_size, d_model, padding_idx = src_pad_token)
         elif src_embed == 'nn.embed_typed':
-            src_embed_layer = embeddings.NNEmbedWithTypeFeature(source_size, d_model, padding_idx=src_pad_token)
+            src_embed_layer = embeddings.NNEmbedWithTypeFeature(source_size, d_model, padding_idx=src_pad_token, **src_embed_options)
         elif src_embed is None:
             src_embed_layer = None
         else:

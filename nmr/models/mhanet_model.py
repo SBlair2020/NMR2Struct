@@ -65,7 +65,8 @@ class MHANetModel(nn.Module):
             src_embed_module = embeddings.NNEmbedWithTypeFeature(
                 source_size,
                 d_model,
-                padding_idx = src_pad_token
+                padding_idx = src_pad_token,
+                **src_embed_options
             )
         else:
             raise ValueError("Unsupported source embedding")

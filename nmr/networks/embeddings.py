@@ -67,19 +67,30 @@ class NNEmbedWithTypeFeature(nn.Module):
     """Embedding layer for spectral source data that includes a type feature
        denoting whether the point came from CNMR or HNMR
     """
-    def __init__(self, source_size: int, d_model: int, padding_idx: int):
+    def __init__(self, source_size: int, d_model: int, padding_idx: int, embed_mode: str = 'add'):
+        """embed_mode controls how the type feature is added. If 'add', the type feature is added to the
+        intensity embedding. If 'concat', the type feature is concatenated to the intensity embedding and
+        both components start as d_model//2"""
+        assert d_model % 2 == 0
+        assert embed_mode in ['add', 'concat']
         super().__init__()
+        if embed_mode == 'concat':
+            d_model = d_model // 2
         self.intensity_embed = nn.Embedding(source_size, d_model, padding_idx = padding_idx)
         #Type embedding: 1 for HNMR, 2 for CNMR, and 3 for separating token (if present). 
         #   0 remains consistent as padding
         self.type_embed = nn.Embedding(4, d_model, padding_idx = padding_idx)
+        self.embed_mode = embed_mode
     
     def forward(self, x: Tensor) -> Tensor:
         '''
         x: (batch_size, 3, seq_len)
         '''
         src, src_type = x[:,0,:], x[:,-1,:]
-        return self.intensity_embed(src) + self.type_embed(src_type)
+        if self.embed_mode == 'add':
+            return self.intensity_embed(src) + self.type_embed(src_type)
+        elif self.embed_mode == 'concat':
+            return torch.cat((self.intensity_embed(src), self.type_embed(src_type)), dim = -1)
     
 class ConvolutionalEmbedding(nn.Module):
     
