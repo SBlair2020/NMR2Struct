@@ -200,3 +200,46 @@ class SubstructureRepresentationOneIndexed(TargetGeneratorBase):
                             'constant',
                             constant_values = (self.pad_token,))
         return shifted_seq, full_seq
+    
+class SMILESRepresentationTokenizedWithSubstructs(TargetGeneratorBase):
+    """Processes SMILES strings into tokenized arrays with padding, return substructures too"""
+    def __init__(self, 
+                 spectra: np.ndarray,
+                 labels: np.ndarray,
+                 smiles: np.ndarray,
+                 tokenizer: BasicSmilesTokenizer,
+                 alphabet: np.ndarray,
+                 eps: float):
+        """
+        Args:
+            spectra_file: Path to the HDF5 file with spectra
+            smiles_file: Path to the HDF5 file with smiles
+            label_file: Path to the HDF5 file with substructure labels
+            input_generator: Function name that generates the model input
+            target_generator: Function name that generates the model target
+            alphabet: Path to the alphabet file
+            eps: Epsilon value for thresholding spectra
+        """
+        self.pad_token = len(alphabet)
+        self.start_token = len(alphabet) + 1
+        self.stop_token = len(alphabet) + 2
+        self.tokenizer = tokenizer
+        self.max_len = look_ahead_smiles(smiles, self.tokenizer)
+        self.index_map = {char: i for i, char in enumerate(alphabet)}
+        self.alphabet_size = len(alphabet) + 3
+
+    def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Transforms the input smiles string into tokenized array with padding"""
+        tokenized_smiles = self.tokenizer.tokenize(smiles)
+        full_seq = [self.index_map[char] for char in tokenized_smiles] + [self.stop_token]
+        shifted_seq = [self.start_token] + full_seq[:-1]
+        assert(len(shifted_seq) == len(full_seq))
+        shifted_seq = np.pad(shifted_seq,
+                            (0, self.max_len - len(shifted_seq)),
+                            'constant',
+                            constant_values = (self.pad_token,))
+        full_seq = np.pad(full_seq,
+                            (0, self.max_len - len(full_seq)),
+                            'constant',
+                            constant_values = (self.pad_token,))
+        return (np.vstack((shifted_seq, full_seq)), substructures)

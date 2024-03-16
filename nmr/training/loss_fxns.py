@@ -38,3 +38,24 @@ class SubsWeightedBCELoss(nn.Module):
 
 CrossEntropyLoss = nn.CrossEntropyLoss
 BCELoss = nn.BCELoss
+
+class MultiTaskLoss(nn.Module):
+    def __init__(self, 
+                 ignore_index: int,
+                 substructure_weight: float,
+                 structure_weight: float):
+        super().__init__()
+        self.ignore_index = ignore_index
+        self.SUBSTRUCTURE_weight = substructure_weight  
+        self.STRUCT_weight = structure_weight
+        self.structure_loss = nn.CrossEntropyLoss(ignore_index=self.ignore_index)
+        self.substructure_loss = nn.BCELoss()
+    
+    def forward(self, 
+                mode: str,
+                y_pred: Tensor,
+                y_true: Tensor) -> Tensor:
+        if mode == 'substructure':
+            return self.SUBSTRUCTURE_weight * self.substructure_loss(y_pred, y_true)
+        elif mode == 'structure':
+            return self.STRUCT_weight * self.structure_loss(y_pred, y_true)

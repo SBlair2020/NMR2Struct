@@ -131,8 +131,9 @@ class ConvolutionalEmbedding(nn.Module):
         super().__init__()
         self.n_spectral_features = 28000
         self.n_Cfeatures = 40
-        self.c_embed = nn.Embedding(self.n_Cfeatures + 1, d_model, padding_idx=0)
-        self.post_conv_transform = nn.Linear(out_channels_2, d_model)
+        self.d_model = d_model
+        self.c_embed = nn.Embedding(self.n_Cfeatures + 1, self.d_model, padding_idx=0)
+        self.post_conv_transform = nn.Linear(out_channels_2, self.d_model)
 
         if pool_variation == 'max':
             self.pool1 = nn.MaxPool1d(pool_size_1)

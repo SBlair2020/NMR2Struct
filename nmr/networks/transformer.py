@@ -120,7 +120,7 @@ class Transformer(nn.Module):
                 x: Tuple[Tensor, Tuple], 
                 y: Tuple[Tensor, Tensor]) -> Tensor:
         src, tgt = self._sanitize_forward_args(x, y)
-        tgt_mask = self._get_tgt_mask(tgt.size(1)).to(src.device)
+        tgt_mask = self._get_tgt_mask(tgt.size(1)).to(tgt.device)
         src_embedded, src_key_pad_mask = self.src_fwd_fn(src, self.d_model, self.src_embed, self.src_pad_token, self.pos_encoder)
         tgt_embedded, tgt_key_pad_mask = self.tgt_fwd_fn(tgt, self.d_model, self.tgt_embed, self.tgt_pad_token, self.pos_encoder)
         transformer_out = self.transformer(src_embedded, tgt_embedded,

@@ -1,6 +1,6 @@
 import torch
 from torch import nn, Tensor
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Callable
 import math
 
 ### Target foward processing functions ###
@@ -165,6 +165,17 @@ def src_fwd_fxn_no_embedding_mlp(src: Tensor,
     assert(src_embed is None)
     src_key_pad_mask = (src[:,:,0] == src_pad_token).bool().to(src.device)
     src_embedded = pos_encoder(src, None)
+    return src_embedded, src_key_pad_mask
+
+def src_fwd_fxn_packed_tensor(src: tuple[Tensor],
+                              d_model: int,
+                              src_embed: nn.Module,
+                              src_pad_token: int,
+                              pos_encoder: nn.Module) -> Tuple[Tensor, Optional[Tensor]]:
+    """ Forward processing for a source tensor that is a tuple which contains 
+    the embedded sequence and the padding mask"""
+    assert(src_embed is None)
+    src_embedded, src_key_pad_mask = src
     return src_embedded, src_key_pad_mask
 
 ### Forward functions for the combined model ###
