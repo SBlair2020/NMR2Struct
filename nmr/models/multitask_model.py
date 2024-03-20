@@ -88,28 +88,44 @@ class MultiTaskModel(nn.Module):
 
     def forward(self, 
                 x: Tuple[Tensor, Tuple], 
-                y: Tuple[Tensor, Tensor]) -> Tensor:
+                y: Tuple[Tensor, Tensor],
+                eval_paths: list[str]) -> Tensor:
+        """
+        The argument eval_paths indicates which submodels to evaluate. It can contain the following values:
+            'structure': The structure model is evaluated on this forward pass
+            'substructure': The substructure model is evaluated on this forward pass
+        Note that the forward() function is not used in get_loss. This is because get_loss will always 
+        evaluate both submodels. If one wishes to only use one submodel, they should train the models 
+        using the convolutional embedding instead. 
+        """
         src, struct_targs, substruct_targs = self._sanitize_forward_args(x, y)
-        src_struct_embedded, src_struct_key_pad_mask = self.fwd_fn(src,
+        if 'structure' in eval_paths:
+            src_struct_embedded, src_struct_key_pad_mask = self.fwd_fn(src,
                                                                    self.structure_model.network.d_model, 
                                                                    self.src_embed, 
                                                                    self.structure_model.network.src_pad_token, 
                                                                    self.structure_model.network.pos_encoder)
-        src_substruct_embedded, src_substruct_key_pad_mask = self.fwd_fn(src,
-                                                                       self.substructure_model.network.d_model, 
-                                                                       self.src_embed, 
-                                                                       self.substructure_model.network.src_pad_token, 
-                                                                       self.substructure_model.network.pos_encoder)
-        src_struct_embedded = self.structure_connector(src_struct_embedded)
-        src_substruct_embedded = self.substructure_connector(src_substruct_embedded)
-        structure_output = self.structure_model(
-            ((src_struct_embedded, src_struct_key_pad_mask), None),
-            struct_targs
-        )
-        substructure_output = self.substructure_model(
-            ((src_substruct_embedded, src_substruct_key_pad_mask), None)
-        )
-
+            src_struct_embedded = self.structure_connector(src_struct_embedded)
+            structure_output = self.structure_model(
+                ((src_struct_embedded, src_struct_key_pad_mask), None),
+                struct_targs
+            )
+        else:
+            structure_output = None
+        if 'substructure' in eval_paths:
+            src_substruct_embedded, src_substruct_key_pad_mask = self.fwd_fn(src,
+                                                                        self.substructure_model.network.d_model, 
+                                                                        self.src_embed, 
+                                                                        self.substructure_model.network.src_pad_token, 
+                                                                        self.substructure_model.network.pos_encoder)
+            
+            src_substruct_embedded = self.substructure_connector(src_substruct_embedded)
+            
+            substructure_output = self.substructure_model(
+                ((src_substruct_embedded, src_substruct_key_pad_mask), None)
+            )
+        else:
+            substructure_output = None
         return structure_output, substructure_output
     
     def get_loss(self,
