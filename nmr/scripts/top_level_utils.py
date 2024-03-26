@@ -199,7 +199,7 @@ def save_array_set(h5ptr: h5py.File,
     group.create_dataset("targets", data = targets)
     group.create_dataset("predictions", data = predictions)
     group.create_dataset("smiles", data = smiles)
-    group.create_dataset("scores", data=np.array([elem[-1] for elem in preds]))
+    group.create_dataset("scores", data=np.vstack([elem[-1] for elem in preds]))
 
 def save_inference_predictions(savedir: str,
                                train_predictions: list,

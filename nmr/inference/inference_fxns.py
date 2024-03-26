@@ -40,8 +40,44 @@ def infer_basic_model(model: nn.Module,
     return [(
         target.detach().cpu().numpy(), 
         output.detach().cpu().numpy(),
-        list(x[1])
+        list(x[1]),
+        np.zeros_like(target.detach().cpu().numpy())
     )]
+
+def infer_multitask_model_substructures(model: nn.Module,
+                                        batch: Tensor, 
+                                        opts: Optional[dict] = None,
+                                        device: torch.device = None) -> Tensor:
+    """Generate predictions for the substructure prediction using the multitask model
+    Args:
+        model: The model to use for inference
+        batch: The input to the model
+        opts: Options to pass to the model as a dictionary, should specify gradient tracking 
+            behavior through value 'track_gradients'. If a dictionary is not provided,
+            the default behavior is to track gradients
+    """
+    x, y = batch
+    target = y[1]
+    if opts is None:
+        track_gradients = False #Default option
+    elif (opts is not None):
+        if 'track_gradients' in opts:
+            track_gradients = opts['track_gradients']
+        else:
+            track_gradients = False
+    if track_gradients:
+        output = model(x, y, eval_paths = ['substructure'])
+    else:
+        with torch.no_grad():
+            output = model(x, y, eval_paths = ['substructure'])
+    output = output[1].detach().cpu().numpy()
+    return [(
+        target.detach().cpu().numpy(),
+        output,
+        list(x[1]),
+        np.zeros_like(target.detach().cpu().numpy())
+    )]
+
 
 def get_top_k_sample_batched(k_val: int | float , 
                              character_probabilities: Tensor) -> tuple[Tensor, Tensor]:
@@ -69,6 +105,48 @@ def get_top_k_sample_batched(k_val: int | float ,
     output_token_probs = torch.gather(tot_probs, -1, selected_index)
     return output, output_token_probs
 
+def forward_generic_transformer(model: nn.Module,
+                                working_x: Tensor,
+                                working_y: Tensor,
+                                track_gradients: bool = True) -> Tensor:
+    """Forward function for infering a generic transformer model
+    
+    Args:
+        model: The transformer model being inferred upon
+        working_x: The input to the model
+        working_y: The output of the model
+        track_gradients: Whether to track gradients during inference. This is because the transformer
+            is known to misbehave if gradient tracking is disabled in certain cases
+    """
+    if track_gradients:
+        next_pos = model((working_x, None), (working_y, None)).detach()
+    else:
+        with torch.no_grad():
+            next_pos = model((working_x, None), (working_y, None))
+    return next_pos
+
+def forward_multitask_transformer(model: nn.Module,
+                                  working_x: Tensor,
+                                  working_y: Tensor,
+                                  track_gradients: bool = True) -> Tensor:
+    """Forward function for infering a multitask transformer model,
+    same signature as the generic transformer forward function but 
+    the additional model args should be a non-empty dictionary that contains the 
+    correct evaluation paths
+    """
+    if track_gradients:
+        next_pos = model((working_x, None), 
+                         ((working_y, None), None),
+                         eval_paths = ['structure'])
+    else:
+        with torch.no_grad():
+            next_pos = model((working_x, None), 
+                             ((working_y, None), None), 
+                             eval_paths = ['structure'])
+    next_pos = next_pos[0].detach()    
+    return next_pos
+
+
 def infer_transformer_model(model: nn.Module, 
                         batch: torch.Tensor, 
                         opts: dict,
@@ -90,6 +168,8 @@ def infer_transformer_model(model: nn.Module,
             is known to misbehave if gradient tracking is disabled in certain cases
         'alphabet' (str): Path to a file containing the alphabet for the model to use in decoding
         'decode' (bool): Whether to decode the output indices of the model against the provided alphabet
+        'infer_fwd_fxn' (str): indicator for the forward function to use, one of 'generic', 'multitask'. 
+            If not provided, the default is assumed to be 'generic', which maps onto the forward_generic_transformer() function
     """
     x, y = batch
     curr_batch_predictions = []
@@ -105,6 +185,16 @@ def infer_transformer_model(model: nn.Module,
     track_gradients = opts['track_gradients']
     alphabet = np.load(opts['alphabet'], allow_pickle=True)
     decode = opts['decode']
+
+    if 'infer_fwd_fxn' not in opts: 
+        infer_fwd_fxn = forward_generic_transformer
+    else:
+        if opts['infer_fwd_fxn'] == 'generic':
+            infer_fwd_fxn = forward_generic_transformer
+        elif opts['infer_fwd_fxn'] == 'multitask':
+            infer_fwd_fxn = forward_multitask_transformer
+        else:
+            raise ValueError("Invalid forward function specified in opts dictionary")
 
     for _ in range(num_pred_per_tgt):
         
@@ -124,11 +214,12 @@ def infer_transformer_model(model: nn.Module,
             if (iter_counter % 10 == 0):
                 print(f"On iteration {iter_counter}")
             
-            if track_gradients:
-                next_pos = model((working_x, None), (working_y, None)).detach()
-            else:
-                with torch.no_grad():
-                    next_pos = model((working_x, None), (working_y, None))
+            next_pos = infer_fwd_fxn(model, working_x, working_y, track_gradients)
+            # if track_gradients:
+            #     next_pos = model((working_x, None), (working_y, None), **additional_model_args).detach()
+            # else:
+            #     with torch.no_grad():
+            #         next_pos = model((working_x, None), (working_y, None), **additional_model_args)
             
             next_val = next_pos[:, -1, :]
             char_probs = torch.nn.functional.softmax(next_val, dim = -1)
