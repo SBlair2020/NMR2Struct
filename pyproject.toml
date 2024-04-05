@@ -21,6 +21,7 @@ Homepage = "https://github.com/FranklinHu1/NMR2Struct"
 
 [project.scripts]
 nmr_train = "nmr.scripts.run_nmr_training:main"
+nmr_train_lightning = "nmr.scripts.train_lightning:main"
 nmr_infer = "nmr.scripts.run_nmr_inference:main"
 nmr_analyze = "nmr.scripts.run_nmr_analysis:main"
 modify_config_auto_restart = "nmr.scripts.modify_config_auto_restart:main"
