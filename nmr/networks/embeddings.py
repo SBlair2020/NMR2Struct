@@ -103,7 +103,9 @@ class ConvolutionalEmbedding(nn.Module):
                  pool_size_2: int = 20,
                  out_channels_2: int = 128,
                  kernel_size_2: int = 9,
-                 add_pos_encode: bool = True):
+                 add_pos_encode: bool = True,
+                 use_hnmr: bool = True,
+                 use_cnmr: bool = True):
         """Construct features over the spectrum using the same convolutional heads as 
         the convolutional neural network. The convolutional head involves 
         two 1D convolutions interspersed with max pooling. The channel dimensionalities
@@ -120,6 +122,8 @@ class ConvolutionalEmbedding(nn.Module):
             kernel_size_1/2: Kernel size for the respective convolutional layer
             add_pos_encode: Whether to add a positional encoding to the output of this source 
                 embedding.
+            use_hnmr: Whether HNMR information is used by the network, defaults to True
+            use_cnmr: Whether CNMR information is used by the network, defaults to True
 
         Notes: 
             Original architectures:
@@ -159,6 +163,11 @@ class ConvolutionalEmbedding(nn.Module):
              (kernel_size_2, pool_size_2, pool_variation)]
         )
         self.add_pos_encoder = add_pos_encode
+        self.use_hnmr = use_hnmr
+        self.use_cnmr = use_cnmr
+        #Have to use at least one source of spectral information as input
+        #   to the model!
+        assert self.use_hnmr or self.use_cnmr
 
         print("Final sequence length after conv embedding:")
         print(self.h_spectrum_final_seq_len)
@@ -253,9 +262,15 @@ class ConvolutionalEmbedding(nn.Module):
         return self.post_conv_transform(spectra)
 
     def forward(self, x):
-        spectra, cnmr, mol = self._separate_spectra_components(x)   
-        cnmr_embed = self._embed_cnmr(cnmr)
-        spectra_embed = self._embed_spectra(spectra)
+        spectra, cnmr, mol = self._separate_spectra_components(x)
+        if self.use_cnmr:   
+            cnmr_embed = self._embed_cnmr(cnmr)
+        else:
+            cnmr_embed = torch.tensor([]).to(x.device)
+        if self.use_hnmr: 
+            spectra_embed = self._embed_spectra(spectra)
+        else:
+            spectra_embed = torch.tensor([]).to(x.device)
         #print(spectra_embed.shape)
         #print(cnmr_embed.shape)
         return torch.cat((spectra_embed, cnmr_embed), dim = 1)

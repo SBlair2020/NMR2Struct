@@ -69,15 +69,26 @@ def src_fwd_fxn_conv_embedding(src: Tensor,
         pos_encoder: The positional encoder layer
     """
     assert(src_embed is not None)
-    cnmr_start = 28000
-    cnmr_end = 28040
-    cnmr = src[:, cnmr_start:cnmr_end]
-    assert(cnmr.shape[-1] == 40)
-    sorted_cnmr = torch.sort(cnmr, dim = -1, descending=True).values
-    cnmr_key_pad_mask = (sorted_cnmr == 0).bool().to(src.device)
-    src_key_pad_mask = torch.zeros(src.shape[0], 
-                                   src_embed.h_spectrum_final_seq_len).bool().to(src.device)
+    #Only construct cnmr padding mask if using cnmr information
+    if src_embed.use_cnmr:
+        cnmr_start = 28000
+        cnmr_end = 28040
+        cnmr = src[:, cnmr_start:cnmr_end]
+        assert(cnmr.shape[-1] == 40)
+        sorted_cnmr = torch.sort(cnmr, dim = -1, descending=True).values
+        cnmr_key_pad_mask = (sorted_cnmr == 0).bool().to(src.device)
+    else:
+        cnmr_key_pad_mask = torch.tensor([]).to(src.device)
+
+    if src_embed.use_hnmr:
+        src_key_pad_mask = torch.zeros(src.shape[0], 
+                                    src_embed.h_spectrum_final_seq_len).bool().to(src.device)
+    else:
+        src_key_pad_mask = torch.tensor([]).to(src.device)
+    
+    #Concatenate the padding masks together
     src_key_pad_mask = torch.cat((src_key_pad_mask, cnmr_key_pad_mask), dim = -1)
+    
     src_embedded = src_embed(src) * math.sqrt(d_model)
     if src_embed.add_pos_encoder:
         src_embedded = pos_encoder(src_embedded, None)
