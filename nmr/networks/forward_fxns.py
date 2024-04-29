@@ -78,13 +78,13 @@ def src_fwd_fxn_conv_embedding(src: Tensor,
         sorted_cnmr = torch.sort(cnmr, dim = -1, descending=True).values
         cnmr_key_pad_mask = (sorted_cnmr == 0).bool().to(src.device)
     else:
-        cnmr_key_pad_mask = torch.tensor([]).to(src.device)
+        cnmr_key_pad_mask = torch.tensor([]).bool().to(src.device)
 
     if src_embed.use_hnmr:
         src_key_pad_mask = torch.zeros(src.shape[0], 
                                     src_embed.h_spectrum_final_seq_len).bool().to(src.device)
     else:
-        src_key_pad_mask = torch.tensor([]).to(src.device)
+        src_key_pad_mask = torch.tensor([]).bool().to(src.device)
     
     #Concatenate the padding masks together
     src_key_pad_mask = torch.cat((src_key_pad_mask, cnmr_key_pad_mask), dim = -1)
