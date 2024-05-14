@@ -96,6 +96,8 @@ class ConvolutionalEmbedding(nn.Module):
     
     def __init__(self, 
                  d_model: int,
+                 n_hnmr_features: int = 28000,
+                 n_cnmr_features: int = 40,
                  pool_variation: str = 'max',
                  pool_size_1: int = 12,
                  out_channels_1: int = 64,
@@ -115,6 +117,8 @@ class ConvolutionalEmbedding(nn.Module):
 
         Args:
             d_model: Model dimensionality for downstream transformer
+            n_hnmr_features: The number of hnmr features, defaults to 28000
+            n_cnmr_features: The number of cnmr features, defaults to 40
             pool_variation: The type of pooling to use, either 'max' or 'avg' where
                 'max' is max pooling and 'avg' is average pooling, both 1D variants
             pool_size_1/2: Size and stride for the respective max pooling layer
@@ -133,8 +137,8 @@ class ConvolutionalEmbedding(nn.Module):
                 pool2: Max pool of size 20 with stride 20
         """
         super().__init__()
-        self.n_spectral_features = 28000
-        self.n_Cfeatures = 40
+        self.n_spectral_features = n_hnmr_features
+        self.n_Cfeatures = n_cnmr_features
         self.d_model = d_model
         self.c_embed = nn.Embedding(self.n_Cfeatures + 1, self.d_model, padding_idx=0)
         self.post_conv_transform = nn.Linear(out_channels_2, self.d_model)
@@ -240,12 +244,13 @@ class ConvolutionalEmbedding(nn.Module):
         assert(cnmr.shape[-1] == self.n_Cfeatures)
         if cnmr.ndim == 3:
             cnmr = cnmr.squeeze(1)
+        padder_idx = self.n_Cfeatures * 2
         indices = torch.arange(0, self.n_Cfeatures) + 1
         indices = indices.to(cnmr.dtype).to(cnmr.device)
         cnmr = cnmr * indices
-        cnmr[cnmr == 0] = 100
+        cnmr[cnmr == 0] = padder_idx
         cnmr = torch.sort(cnmr).values
-        cnmr[cnmr == 100] = 0
+        cnmr[cnmr == padder_idx] = 0
         #print(torch.max(cnmr))
         #print(torch.min(cnmr))
         return self.c_embed(cnmr.long())

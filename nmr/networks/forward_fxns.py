@@ -71,10 +71,10 @@ def src_fwd_fxn_conv_embedding(src: Tensor,
     assert(src_embed is not None)
     #Only construct cnmr padding mask if using cnmr information
     if src_embed.use_cnmr:
-        cnmr_start = 28000
-        cnmr_end = 28040
+        cnmr_start = src_embed.n_spectral_features
+        cnmr_end = cnmr_start + src_embed.n_Cfeatures
         cnmr = src[:, cnmr_start:cnmr_end]
-        assert(cnmr.shape[-1] == 40)
+        assert(cnmr.shape[-1] == src_embed.n_Cfeatures)
         sorted_cnmr = torch.sort(cnmr, dim = -1, descending=True).values
         cnmr_key_pad_mask = (sorted_cnmr == 0).bool().to(src.device)
     else:

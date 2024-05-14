@@ -9,8 +9,7 @@ from nmr.data import create_dataset
 from nmr.models import create_model
 from nmr.training import create_optimizer, fit
 import nmr.training.loss_fxns as loss_fxns
-import h5py
-import pickle as pkl
+import os
 import hydra
 from nmr.scripts.top_level_utils import (
     seed_everything,
@@ -87,27 +86,18 @@ def main() -> None:
                                                       monitor='validation_loss',
                                                       mode='min',
                                                       every_n_epochs=1,
-                                                      save_top_k=training_args['top_checkpoints_n'],
-                                                      dirpath=savedir)
+                                                      save_top_k=training_args['top_checkpoints_n'])
     restart_checkpoint_callback = ModelCheckpoint(filename="RESTART_checkpoint", 
                                                   every_n_epochs=1,
-                                                  save_top_k=1,
-                                                  dirpath=savedir)
+                                                  save_top_k=1)
     
-    tot_config = {
-        'global_args' : global_args,
-        'data' : updated_dataset_args,
-        'model' : model_args,
-        'training' : training_args
-    }
-    OmegaConf.save(tot_config, f"{savedir}/config.yaml")
     
+    logger = TensorBoardLogger(save_dir = "./")
     lightning_model = LightningModel(
         model_args = model_args,
         training_args = training_args
     )
 
-    logger = TensorBoardLogger(save_dir = savedir)
     if (global_args['ngpus'] != 0):
         if training_args['strategy'] == 'fsdp':
             strategy = FSDPStrategy(
@@ -134,6 +124,19 @@ def main() -> None:
             inference_mode=False,
             precision="16-mixed"
         )
+
+    if trainer.global_rank == 0:
+        train_folder_name = trainer.logger.log_dir
+        os.makedirs(train_folder_name, exist_ok = True)
+        tot_config = {
+            'global_args' : global_args,
+            'data' : updated_dataset_args,
+            'model' : model_args,
+            'training' : training_args
+        }
+        OmegaConf.save(tot_config, f"{train_folder_name}/config.yaml")
+        dataset.save_smiles_alphabet(train_folder_name)
+    
     trainer.fit(lightning_model, train_loader, val_loader, 
                 ckpt_path = training_args['restart_ckpt'] if training_args['restart_ckpt'] is not None else None)
     
