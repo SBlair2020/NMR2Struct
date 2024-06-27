@@ -13,7 +13,8 @@ def train_loop(model: nn.Module,
                epoch: int, 
                writer: torch.utils.tensorboard.SummaryWriter, 
                scheduler: Optional[torch.optim.lr_scheduler.LambdaLR], 
-               write_freq: int = 100) -> float:
+               write_freq: int = 100,
+               write_tag: str = "") -> float:
     """Model training loop
     Args:
         model: The model to train
@@ -25,6 +26,7 @@ def train_loop(model: nn.Module,
         writer: Tensorboard writer for logging losses and learning rates
         scheduler: The optional learning rate scheduler
         write_freq: The frequency for printing loss information
+        write_tag: For naming unique losses in the tensorboard writer
     """
     tot_loss = 0
     model.train()
@@ -38,18 +40,25 @@ def train_loop(model: nn.Module,
         if scheduler is not None:
             scheduler.step()
         if (ibatch % write_freq == 0):
-            print(f"Epoch: {epoch}\tBatch:{ibatch}\tTrain Loss:{loss.item()}")
+            print(f"Epoch: {epoch}\tBatch:{ibatch}\tTrain Loss{write_tag}: {loss.item()}")
         tot_loss += loss.item()
-        writer.add_scalar("Training Step Loss", loss.item(), inner_step)
-    writer.add_scalar("Avg. Epoch Train Loss", tot_loss / len(dataloader), epoch)
-    return tot_loss / len(dataloader)
+        writer.add_scalar(f"Training Step Loss{write_tag}", loss.item(), inner_step)
+  
+    if len(dataloader) > 0:
+        writer.add_scalar(f"Avg. Epoch Train Loss{write_tag}", tot_loss / len(dataloader), epoch)
+        return tot_loss / len(dataloader)   
+    else:
+        writer.add_scalar(f"Avg. Epoch Train Loss{write_tag}", 0, epoch)
+        return 0
+   
 
 def validation_loop(model: nn.Module, 
                     dataloader: torch.utils.data.DataLoader, 
                     loss_fn: Callable[[Tensor, Tensor], Tensor], 
                     epoch: int, 
                     writer: torch.utils.tensorboard.SummaryWriter, 
-                    write_freq: int = 100) -> float:
+                    write_freq: int = 100,
+                    write_tag: str="") -> float:
     """Model validation loop
     Args:
         model: The model to validate
@@ -59,6 +68,7 @@ def validation_loop(model: nn.Module,
         epoch: The current epoch
         writer: Tensorboard writer for logging losses and learning rates
         write_freq: The frequency for printing loss information
+        write_tag: For naming unique losses in the tensorboard writer
     """
     tot_loss = 0
     model.eval()
@@ -66,18 +76,25 @@ def validation_loop(model: nn.Module,
         inner_step = int(( epoch * len(dataloader)) + ibatch)
         loss = model.get_loss(x,y,loss_fn).detach()
         if (ibatch % write_freq == 0):
-            print(f"Epoch: {epoch}\tBatch:{ibatch}\tValidation Loss:{loss.item()}")
+            print(f"Epoch: {epoch}\tBatch:{ibatch}\tValidation Loss{write_tag}: {loss.item()}")
         tot_loss += loss.item()
-        writer.add_scalar("Validation Step Loss", loss.item(), inner_step)
-    writer.add_scalar("Avg. Epoch Validation Loss", tot_loss / len(dataloader), epoch)
-    return tot_loss / len(dataloader)
+        writer.add_scalar(f"Validation Step Loss{write_tag}", loss.item(), inner_step)
+    
+    if len(dataloader) > 0:
+        writer.add_scalar(f"Avg. Epoch Validation Loss{write_tag}", tot_loss / len(dataloader), epoch)
+        return tot_loss / len(dataloader)
+    else:
+        writer.add_scalar(f"Avg. Epoch Validation Loss{write_tag}", 0, epoch)
+        return 0
+
 
 def test_loop(model: nn.Module, 
                 dataloader: torch.utils.data.DataLoader, 
                 loss_fn: Callable[[Tensor, Tensor], Tensor], 
                 epoch: int, 
                 writer: torch.utils.tensorboard.SummaryWriter, 
-                write_freq: int = 100) -> float:
+                write_freq: int = 100,
+                write_tag: str="") -> float:
     """Model test loop
     Args:
         model: The model to test
@@ -87,6 +104,7 @@ def test_loop(model: nn.Module,
         epoch: The current epoch
         writer: Tensorboard writer for logging losses and learning rates
         write_freq: The frequency for printing loss information
+        write_tag: For naming unique losses in the tensorboard writer
     """
     tot_loss = 0
     model.eval()
@@ -94,11 +112,17 @@ def test_loop(model: nn.Module,
         inner_step = int(( epoch * len(dataloader)) + ibatch)
         loss = model.get_loss(x,y,loss_fn).detach()
         if (ibatch % write_freq == 0):
-            print(f"Epoch: {epoch}\tBatch:{ibatch}\Test Loss:{loss.item()}")
+            print(f"Epoch: {epoch}\tBatch:{ibatch}\tTest Loss{write_tag}: {loss.item()}")
         tot_loss += loss.item()
-        writer.add_scalar("Test Step Loss", loss.item(), inner_step)
-    writer.add_scalar("Avg. Epoch Test Loss", tot_loss / len(dataloader), epoch)
-    return tot_loss / len(dataloader)
+        writer.add_scalar(f"Test Step Loss{write_tag}", loss.item(), inner_step)
+    
+    if len(dataloader) > 0:
+        writer.add_scalar(f"Avg. Epoch Test Loss{write_tag}", tot_loss / len(dataloader), epoch)
+        return tot_loss / len(dataloader)
+    else:
+        writer.add_scalar(f"Avg. Epoch Test Loss{write_tag}", 0, epoch)
+        return 0
+
 
 def save_model(model: nn.Module, 
                optim: torch.optim.Optimizer, 
@@ -151,9 +175,9 @@ def determine_existing_checkpoints(savedir: str) -> tuple[list, list]:
         return checkpoint_files, checkpoint_losses
 
 def fit(model: nn.Module,
-        train_dataloader: torch.utils.data.DataLoader, 
-        val_dataloader: torch.utils.data.DataLoader, 
-        test_dataloader: torch.utils.data.DataLoader, 
+        train_dataloaders: torch.utils.data.DataLoader, 
+        val_dataloaders: torch.utils.data.DataLoader, 
+        test_dataloaders: torch.utils.data.DataLoader, 
         loss_fn: Callable[[Tensor, Tensor], Tensor], 
         optimizer: torch.optim.Optimizer, 
         nepochs: int,
@@ -169,9 +193,9 @@ def fit(model: nn.Module,
 
     Args:
         model: The model to train
-        train_dataloader: The dataloader for the training dataset
-        val_dataloader: The dataloader for the validation dataset
-        test_dataloader: The dataloader for the test dataset
+        train_dataloaders: A list of the dataloaders for the training datasets
+        val_dataloaders: A list of the dataloaders for the validation datasets
+        test_dataloaders: A list of the dataloader for the test datasets
         loss_fn: The loss function to use for the model, with the signature
             tensor, tensor -> tensor
         optimizer: The optimizer for training the model
@@ -186,39 +210,66 @@ def fit(model: nn.Module,
         prev_epochs: The number of epochs that have already been trained for. This is used
             for loading checkpoints
     """
+    assert len(train_dataloaders) == len(val_dataloaders) == len(test_dataloaders)
     existing_files, existing_losses = determine_existing_checkpoints(save_dir)
     assert(len(existing_files) == len(existing_losses))
     best_losses = np.concatenate((np.ones(top_checkpoints_n - len(existing_losses)) * np.inf, np.array(existing_losses)))
     model_names = [None] * (top_checkpoints_n - len(existing_files)) + existing_files
-    train_losses, val_losses, test_losses = [], [], []
+    train_metrics = {
+        f'train_loss_{x}' : [] for x in range(len(train_dataloaders))
+    }
+    val_metrics = {
+        f'val_loss_{x}' : [] for x in range(len(val_dataloaders))
+    }
+    test_metrics = {
+        f'test_loss_{x}' : [] for x in range(len(test_dataloaders))
+    }
     for epoch in range(nepochs):
         true_epoch = epoch + prev_epochs
-        train_loss = train_loop(model, 
-                                train_dataloader, 
-                                loss_fn, 
-                                optimizer, 
-                                true_epoch, 
-                                writer, 
-                                scheduler, 
-                                write_freq)
-        train_losses.append(train_loss)
-        val_loss = validation_loop(model, 
-                                   val_dataloader, 
-                                   loss_fn, 
-                                   true_epoch, 
-                                   writer, 
-                                   write_freq)
-        val_losses.append(val_loss)
+
+        #Train loss computations
+        for i_train, train_dloader in enumerate(train_dataloaders):
+            train_loss = train_loop(model, 
+                                    train_dloader, 
+                                    loss_fn, 
+                                    optimizer, 
+                                    true_epoch, 
+                                    writer, 
+                                    scheduler, 
+                                    write_freq,
+                                    write_tag=f" {i_train}")
+            train_metrics[f'train_loss_{i_train}'].append(train_loss)
+        #Validation loss computations
+        for i_val, val_dloader in enumerate(val_dataloaders):
+            val_loss = validation_loop(model, 
+                                    val_dloader, 
+                                    loss_fn, 
+                                    true_epoch, 
+                                    writer, 
+                                    write_freq,
+                                    write_tag = f" {i_val}")
+            val_metrics[f"val_loss_{i_val}"].append(val_loss)
         if true_epoch % test_freq == 0:
-            test_loss = test_loop(model,
-                                test_dataloader,
-                                loss_fn,
-                                true_epoch,
-                                writer,
-                                write_freq)
-            test_losses.append(test_loss)
+            #Test loss calculation
+            for i_tst, tst_dloader in enumerate(test_dataloaders):
+                test_loss = test_loop(model,
+                                    tst_dloader,
+                                    loss_fn,
+                                    true_epoch,
+                                    writer,
+                                    write_freq,
+                                    write_tag = f" {i_tst}")
+                test_metrics[f"test_loss_{i_tst}"].append(test_loss)
         
-        curr_k_metric_value = train_loss if loss_metric == 'train' else val_loss
+        if 'train' in loss_metric:
+            curr_k_metric_value = train_metrics[loss_metric][-1]
+        elif 'val' in loss_metric:
+            curr_k_metric_value = val_metrics[loss_metric][-1]
+        # elif 'test' in loss_metric:
+        #     curr_k_metric_value = test_metrics[loss_metric][-1]
+        else:
+            raise ValueError("Invalid monitoring metric")
+
         max_loss_idx = np.argmax(best_losses)
         max_loss_value = best_losses[max_loss_idx]
         max_loss_model = model_names[max_loss_idx]
@@ -248,14 +299,18 @@ def fit(model: nn.Module,
                    savename = f"{save_dir}/RESTART_checkpoint.pt")
     writer.flush()
     writer.close()
-    final_test_loss = test_loop(model,
-                                test_dataloader,
-                                loss_fn,
-                                true_epoch,
-                                writer,
-                                write_freq)
-    test_losses.append(final_test_loss)
+
+    for i, tst_dloader in enumerate(test_dataloaders):
+        final_test_loss = test_loop(model,
+                                    tst_dloader,
+                                    loss_fn,
+                                    true_epoch,
+                                    writer,
+                                    write_freq,
+                                    write_tag = f" {i}")
+        test_metrics[f'test_loss_{i}'].append(final_test_loss)
+    
     if nepochs >= top_checkpoints_n:
         assert(None not in model_names)
         assert(all(best_losses < np.inf))
-    return train_losses, val_losses, test_losses, model_names, best_losses
+    return train_metrics, val_metrics, test_metrics, model_names, best_losses

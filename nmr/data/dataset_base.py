@@ -39,12 +39,24 @@ class NMRDataset(Dataset):
                 items are processed one at a time through __getitem__. The former is faster
                 but requires more memory.
         """
-        self.spectra_h5 = h5py.File(spectra_file, 'r')
-        self.label_h5 = h5py.File(label_file, 'r')
-
-        self.spectra = self.spectra_h5['spectra']
-        self.labels = self.label_h5['substructure_labels']
+        #Very general approach for handling data, but some of the three data sources should
+        #   be present in general.
+        #Spectra
+        if spectra_file is not None:
+            self.spectra_h5 = h5py.File(spectra_file, 'r')
+            self.spectra = self.spectra_h5['spectra']
+        else:
+            self.spectra = None
+        #Substructures
+        if label_file is not None:
+            self.label_h5 = h5py.File(label_file, 'r')
+            self.labels = self.label_h5['substructure_labels']
+        else:
+            self.labels = None
+        #Smiles
+        assert smiles_file is not None
         self.smiles = np.load(smiles_file, allow_pickle = True)
+
         #Canonicalize up front
         self.smiles = [chem.CanonSmiles(smi.decode('utf-8')) for smi in self.smiles]
         self.tokenizer = BasicSmilesTokenizer()
@@ -77,9 +89,11 @@ class NMRDataset(Dataset):
             self.preprocessed_model_inputs = []
             self.preprocessed_model_targets = []
             for i in tqdm(range(len(self))):
-                spectra_data = self.spectra[i]
-                smiles_data = self.smiles[i]
-                label_data = self.labels[i]
+                #Empty array to represent null
+                spectra_data = self.spectra[i] if self.spectra is not None else np.array([])
+                label_data = self.labels[i] if self.labels is not None else np.array([])
+                smiles_data = self.smiles[i] 
+
                 model_input = self.input_generator.transform(spectra_data, smiles_data, label_data)
                 model_target = self.target_generator.transform(spectra_data, smiles_data, label_data)
                 model_input = torch.from_numpy(model_input).to(self.dtype)
@@ -88,7 +102,7 @@ class NMRDataset(Dataset):
                 self.preprocessed_model_targets.append(model_target)
 
     def __len__(self):
-        return len(self.labels)
+        return len(self.smiles)
 
     def _determine_smiles_alphabet(self, smiles: list[str]):
         """Generates the alphabet from the set of smiles strings

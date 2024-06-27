@@ -127,7 +127,8 @@ class Transformer(nn.Module):
                                            tgt_mask = tgt_mask,
                                            tgt_key_padding_mask = tgt_key_pad_mask,
                                            #NOTE: src_key_padding_mask causes issues when dealing with no_grad() context, see https://github.com/pytorch/pytorch/issues/106630
-                                           src_key_padding_mask = src_key_pad_mask)
+                                           src_key_padding_mask = src_key_pad_mask,
+                                           memory_key_padding_mask = src_key_pad_mask)
         out = self.out(transformer_out)
         return out
 

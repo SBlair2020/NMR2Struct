@@ -205,7 +205,8 @@ def save_inference_predictions(savedir: str,
                                train_predictions: list,
                                val_predictions: list,
                                test_predictions: list, 
-                               idx: int = None) -> None:
+                               idx: int = None,
+                               savetag: str = None) -> None:
     '''Saves the predictions from inference as h5 files in the specified directory
 
     Args:
@@ -214,6 +215,7 @@ def save_inference_predictions(savedir: str,
         val_predictions: The list of validation predictions
         test_predictions: The list of test predictions
         idx: The index to distinguish the predictions from different parallel runs
+        savetag: Prefix that is consistent across parallel saves
 
     The formatting for the h5py file changes depending on the form of the predictions. 
     However, at the top level, the following are exposed: 'train', 'val', and 'test'. Depending
@@ -224,7 +226,9 @@ def save_inference_predictions(savedir: str,
     print("Saving predictions...")
     test_element = test_predictions[0]
     assert(isinstance(test_element, tuple))
-    filehandle = f"{savedir}/predictions.h5" if idx is None else f"{savedir}/predictions_{idx}.h5"
+    idx_comp = "" if idx is None else f"_{idx}"
+    savetag_comp = "" if savetag is None else f"_{savetag}"
+    filehandle = f"{savedir}/predictions{savetag_comp}{idx_comp}.h5"
     with h5py.File(filehandle, 'w') as f:    
         if isinstance(test_element[0], str):
             save_fxn = save_str_set
