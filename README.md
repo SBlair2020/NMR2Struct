@@ -13,4 +13,14 @@ Paper available at: https://pubs.acs.org/doi/10.1021/acscentsci.4c01132
 Data available on Zenodo at: https://zenodo.org/records/13892026
 
 # Installation
+We recommend having Anaconda installed as your package manager. To install NMR2Struct, do the following:
+```
+git clone https://github.com/MarklandGroup/NMR2Struct.git
+cd NMR2Struct
+conda env create -f environment.yml
+conda activate NMR_env
+pip install -e .
+```
+
+Make sure to run ``conda update conda`` before installing to ensure your anaconda distribution is up to date. 
 
