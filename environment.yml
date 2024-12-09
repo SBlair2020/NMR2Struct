@@ -1,27 +1,21 @@
 name: NMR_env
 channels:
-  - https://repo.anaconda.com/pkgs/main
-  - https://repo.anaconda.com/pkgs/r
   - pytorch
   - nvidia
+  - conda-forge
 dependencies:
   - ca-certificates
   - certifi
-  - conda-forge::ffmpeg
-  - conda-forge::openbabel
-  - conda-forge::transformers
   - gh
   - jupyterlab
   - openssl
   - pip
   - pydantic
-  - pytorch-cuda=12.1
   - rdkit
   - scikit-learn
   - seaborn
   - tensorboard
-  - torchaudio
-  - torchvision
+  - pytorch::pytorch-cuda=12.1
   - pip:
       - antlr4-python3-runtime==4.9.3
       - h5py==3.12.1
