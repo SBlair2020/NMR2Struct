@@ -25,3 +25,4 @@ dependencies:
       - omegaconf==2.3.0
       - pytorch-lightning==2.4.0
       - torchmetrics==1.6.0
+      - standard-imghdr==3.13.0
