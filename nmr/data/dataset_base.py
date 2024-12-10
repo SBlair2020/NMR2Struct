@@ -9,6 +9,7 @@ import nmr.data.input_generators as input_generators
 import nmr.data.target_generators as target_generators
 import torch
 from tqdm import tqdm
+import pickle
 
 class NMRDataset(Dataset):
     """Sketch of potential dataset class"""
@@ -162,3 +163,86 @@ class NMRDataset(Dataset):
         input_len = self.input_generator.get_max_seq_len()
         target_len = self.target_generator.get_max_seq_len()
         return {'max_src_len' : input_len, 'max_tgt_len' : target_len}
+    
+class SingleNMRDataset(Dataset):
+    """Very simple dataset used for processing a single example at a time"""
+    def __init__(self, 
+                 hnmr_file: str,
+                 cnmr_file: str,
+                 normalize: bool = True,
+                 hnmr_shifts: str = None,
+                 cnmr_shifts: str = None,
+                 dtype: torch.dtype = torch.float,
+                 device: torch.device = None):
+        """
+        Args:
+            hnmr_file: Path to the TXT file with HNMR data
+            cnmr_file: Path to the TXT file with CNMR data
+            normalize: If True, normalize the HNMR intensities by the highest peak
+        """
+        assert not (hnmr_file is None and cnmr_file is None)
+        assert (hnmr_shifts is not None) and (cnmr_shifts is not None)
+        self.hnmr_file = hnmr_file
+        self.cnmr_file = cnmr_file
+        with open(cnmr_shifts, 'rb') as f:
+            self.cnmr_shifts = pickle.load(f)
+        with open(hnmr_shifts, 'rb') as f:
+            self.hnmr_shifts = pickle.load(f)
+        self.normalize = normalize
+        self.dtype = dtype
+        self.device = device
+        self.spectra = self.process_spectra()
+
+    def extract_hnmr_data(self, hnmr_txt_file: str) -> Tuple[np.ndarray, np.ndarray]:
+        """Extracts the HNMR data from the file"""
+        with open(hnmr_txt_file, 'r') as f:
+            lines = f.readlines()
+        shift, intensity = [], []
+        for line in lines:
+            values = line.split()
+            ppm, intens = values
+            shift.append(float(ppm))
+            intensity.append(float(intens))
+        return np.array(shift), np.array(intensity)
+    
+    def process_hnmr(self, hnmr_txt_file: str):
+        h_ppm, h_intens = self.extract_hnmr_data(hnmr_txt_file)
+        #Reverse both ppm and intensity if they are not ascending order
+        ppm_diffs = np.diff(h_ppm)
+        if np.any(ppm_diffs < 0):
+            h_ppm = h_ppm[::-1]
+            h_intens = h_intens[::-1]
+        new_h_intens = np.interp(self.hnmr_shifts, h_ppm, h_intens)
+        if self.normalize:
+            new_h_intens = new_h_intens / np.max(new_h_intens)
+        return new_h_intens
+    
+    def process_cnmr(self, cnmr_txt_file: str):
+        with open(cnmr_txt_file, 'r') as f:
+            content = f.read()
+        #ASSUME for now that CNMR is a comma separated list of ppm shifts
+        all_vals = np.array([float(val) for val in content.split(',')])
+        bins = np.digitize(all_vals, self.cnmr_shifts)
+        bins = np.where(bins == len(self.cnmr_shifts), len(self.cnmr_shifts) - 1, bins)
+        spectrum = np.zeros(len(self.cnmr_shifts))
+        spectrum[bins] = 1
+        return spectrum
+    
+    def process_spectra(self):
+        if self.hnmr_file is not None:
+            hnmr_spectra = self.process_hnmr(self.hnmr_file)
+        else:
+            hnmr_spectra = np.zeros(len(self.hnmr_shifts))
+        if self.cnmr_file is not None:
+            cnmr_spectra = self.process_cnmr(self.cnmr_file)
+        else:
+            cnmr_spectra = np.zeros(len(self.cnmr_shifts))
+        return np.concatenate([hnmr_spectra, cnmr_spectra])
+    
+    def __len__(self):
+        return 1
+    
+    def __getitem__(self, idx):
+        return (torch.from_numpy(self.spectra).to(self.dtype).to(self.device), 
+                "NULL"), (torch.tensor(0).to(self.dtype).to(self.device), 
+                         torch.tensor(0).to(self.dtype).to(self.device))

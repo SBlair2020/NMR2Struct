@@ -36,7 +36,7 @@ All of the functionality in NMR2Struct is controlled via a YAMl configuration fi
 For the ```data``` section specifically, the ```spectra_file```, ```label_file```, and ```smiles_file``` fields contain lists of files and there should be the same number of elements in each list, even if some elements are set to ```null```. There is an element-wise correspondence of the elements in each list, so the first file spectrum, label, and smiles file together forms one dataset, and so on. This is designed so that the training and losses can be computed separately for each dataset and is useful for more advanced early-stopping experiments. The files should have the following formats:
 - **spectra**: These should be hdf5 files that contain one dataset called 'spectra' where each row is a one-dimensional vector representing the concatenated <sup>1</sup>H NMR and <sup>13</sup>C NMR spectrum.
 - **label**: These should beb hdf5 files that contain one dataset called 'substructure_labels' where each row is a one-dimensional binary vector representing the substructures detected in each molecule.
-- **smiles**: This should be a numpy file that contains a single array with all SMILES strings encoded into binary format. Be sure to do ```x.decode('utf-8')``` when reading strings from this format.A
+- **smiles**: This should be a numpy file that contains a single array with all SMILES strings encoded into binary format. Be sure to do ```x.decode('utf-8')``` when reading strings from this format.
 
 
 # Training 
@@ -52,13 +52,28 @@ nmr_train config.yaml
 A similar procedure is used for training a spectrum-to-structure multitask model, but make sure to use the ```example_configs/training_spectrum_to_struct.yaml``` file as the starting point and set the ```spectra_file``` field to list the correct spectra files.
 
 # Inference (with full dataset)
-To infer a substructure-to-structure transformer for SMILES generation, just run:
+To infer a substructure-to-structure transformer for SMILES generation, first make sure to set the alphabet correctly with:
+```yaml
+inference:
+  ...
+  run_inference_args: 
+    ...
+    pred_gen_opts:
+      ...
+      alphabet: checkpoints/alphabet.npy
+```
+which is the alphabet generated from training. 
+
+> [!NOTE]
+> If you want to use the alphabet that was used in the original model from the paper, put the path to the file ```example_configs/alphabet.npy``` instead.
+
+Once the alphabet is set, just run:
 ```
 nmr_infer config.yaml 0 1
 ```
-where ```config.yaml``` is your modified training script from the training section which should contain an inference section tailored for the substructure-to-structure transformer. The 0 and 1 refer to the local rank and total number of GPU processes and is used to control multi-GPU inference. For most cases, inference on one GPU is sufficient, so we use a local rank of 0 and 1 GPU process. Make sure to set the ```splits``` field correctly under the ```inference``` section. The same procedure holds for inferring SMILES from a spectrum-to-structure multitaks model. By default, the yaml files are configured to have the models generate SMILES strings. 
+where ```config.yaml``` is your modified training script from the training section which should contain an inference section tailored for the substructure-to-structure transformer. The 0 and 1 refer to the local rank and total number of GPU processes and is used to control multi-GPU inference. For most cases, inference on one GPU is sufficient, so we use a local rank of 0 and 1 GPU process. Make sure to set the ```splits``` field correctly under the ```inference``` section. The same procedure holds for inferring SMILES from a spectrum-to-structure multitask model. By default, the yaml files are configured to have the models generate SMILES strings. 
 
-To infer substructures from the multitask model, modify the inference section as follows:
+To infer substructures from the multitask model, modify the inference section as follows, being sure to fill in the splits file which denotes which parts of the dataset belong to the test set:
 ```yaml
 inference:
   model_selection: lowest
@@ -83,7 +98,7 @@ Running inference writes the raw predictions as an hdf5 file to the save directo
 > This inference workflow is intended for running inference on a model on a dataset that was used for training, i.e. getting predictions over a test set to then compute metrics on. If you want to infer a single example, please refer to the section on inference with specific examples.
 
 # Inference (on a specific example)
-TODO
+To infer a specific example, 
 
 # Analysis
 If you want to calculate metrics for substructures, configure the ```analysis``` section of your YAML file as follows:
