@@ -11,6 +11,7 @@ from .top_level_utils import (
     save_inference_predictions,
 )
 from typing import Any
+import os
 
 def get_args() -> dict:
     '''Parses the passed yaml file to get arguments'''
@@ -38,6 +39,9 @@ def main() -> None:
     seed = seed_everything(global_args['seed'])
     dtype = dtype_convert(global_args['dtype'])
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    if not os.path.isdir(global_args['savedir']):
+        os.makedirs(global_args['savedir'])
 
     # Create the dataset
     hnmr_file, cnmr_file, hnmr_shifts, cnmr_shifts, ckpt, normalize = files
