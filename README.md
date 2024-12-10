@@ -98,7 +98,36 @@ Running inference writes the raw predictions as an hdf5 file to the save directo
 > This inference workflow is intended for running inference on a model on a dataset that was used for training, i.e. getting predictions over a test set to then compute metrics on. If you want to infer a single example, please refer to the section on inference with specific examples.
 
 # Inference (on a specific example)
-To infer a specific example, 
+To infer a specific example, we recommend using the single spectrum inference entry point. To use this entry point, do the following:
+```
+nmr_infer_single_spectrum \
+    --config YAML_CONFIG_FILE \
+    --hnmr_file HNMR_FILE \
+    --cnmr_file CNMR_FILE \
+    --hnmr_shifts HNMR_SHIFTS \
+    --cnmr_shifts CNMR_SHIFTS \
+    --ckpt CKPT \
+    --normalize
+```
+> [!NOTE]
+> This entry point only works for inferring structure from spectrum using a multitask model.
+
+The arguments are as follows: 
+- ```--config```: A yaml configuration file that contains at least the ```global_args```, ```model```, and ```inference``` sections. 
+- ```--hnmr_file```: A text or tab separated csv file containing pairs of (ppm, intensity) values on each row separated by a space.
+- ```--cnmr_file```: A text file containing a comma separated list of the carbon ppm shifts in the NMR.
+- ```--hnmr_shifts```: A pickle file containing the shift grid as a 1D numpy array that is used to interpolate the <sup>1</sup>H NMR spectrum. You can find shift grid used in the paper in ```example_configs/HNMR_shifts.p```.
+- ```--cnmr_shifts```: A pickle file containing the shift grid for discretizing the <sup>13</sup>C NMR spectrum. The grid used in the paper can be found in ```example_configs/CNMR_shifts.p```.
+- ```--ckpt```: The model checkpoint you want to use. Its architecture should match the one specified in ```--config```.
+- ```---normalize```: Toggles normalization of the <sup>1</sup>H NMR spectrum by dividing the spectrum by the its highest intensity.  
+
+For the inference section in the config file, there are two fields ```tgt_start_token``` and ```tgt_stop_token``` which are the start-of-sequence and end-of-sequence tokens for SMILES generation, respectively. The convention for tokens throughout the codebase is based on the 
+length of the model's alphabet, and is as follows:
+- padding: length of the alphabet
+- start: padding + 1
+- stop: start + 1 
+
+At the end of the inference, the predictions will be saved to the ```save_dir``` specified in the ```global_args``` section as an hdf5 file under the ```test``` group. 
 
 # Analysis
 If you want to calculate metrics for substructures, configure the ```analysis``` section of your YAML file as follows:
