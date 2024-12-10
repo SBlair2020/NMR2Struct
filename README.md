@@ -52,6 +52,9 @@ nmr_train config.yaml
 A similar procedure is used for training a spectrum-to-structure multitask model, but make sure to use the ```example_configs/training_spectrum_to_struct.yaml``` file as the starting point and set the ```spectra_file``` field to list the correct spectra files.
 
 # Inference (with full dataset)
+> [!WARNING]
+> This inference workflow is intended for running inference on a model on a dataset that was used for training, i.e. getting predictions over a test set to then compute metrics on. If you want to infer a single example, please refer to the section on inference with specific examples.
+
 To infer a substructure-to-structure transformer for SMILES generation, first make sure to set the alphabet correctly with:
 ```yaml
 inference:
@@ -71,7 +74,7 @@ Once the alphabet is set, just run:
 ```
 nmr_infer config.yaml 0 1
 ```
-where ```config.yaml``` is your modified training script from the training section which should contain an inference section tailored for the substructure-to-structure transformer. The 0 and 1 refer to the local rank and total number of GPU processes and is used to control multi-GPU inference. For most cases, inference on one GPU is sufficient, so we use a local rank of 0 and 1 GPU process. Make sure to set the ```splits``` field correctly under the ```inference``` section. The same procedure holds for inferring SMILES from a spectrum-to-structure multitask model. By default, the yaml files are configured to have the models generate SMILES strings. 
+where ```config.yaml``` is your modified training script from the training section which should contain an inference section tailored for the substructure-to-structure transformer. The 0 and 1 refer to the local rank and total number of GPU processes and is used to control multi-GPU inference. For most cases, inference on one GPU is sufficient, so we use a local rank of 0 and 1 GPU process. Make sure to set the ```splits``` field correctly under the ```inference``` section. The same procedure holds for inferring SMILES from a spectrum-to-structure multitask model. By default, the ```inference``` sections of the provided yaml files are configured to have the models generate SMILES strings. 
 
 To infer substructures from the multitask model, modify the inference section as follows, being sure to fill in the splits file which denotes which parts of the dataset belong to the test set:
 ```yaml
@@ -94,8 +97,6 @@ inference:
 ```
 Running inference writes the raw predictions as an hdf5 file to the save directory that you specified under the ```global_args``` section, which should also be where the model checkpoints and tensorboard files are saved.
 
-> [!WARNING]
-> This inference workflow is intended for running inference on a model on a dataset that was used for training, i.e. getting predictions over a test set to then compute metrics on. If you want to infer a single example, please refer to the section on inference with specific examples.
 
 # Inference (on a specific example)
 To infer a specific example, we recommend using the single spectrum inference entry point. To use this entry point, do the following:
@@ -110,10 +111,11 @@ nmr_infer_single_spectrum \
     --normalize
 ```
 > [!NOTE]
-> This entry point only works for inferring structure from spectrum using a multitask model.
+> This entry point only works for inferring structure/substructures from spectrum using a multitask model.
 
 The arguments are as follows: 
-- ```--config```: A yaml configuration file that contains at least the ```global_args```, ```model```, and ```inference``` sections. 
+- ```--config```: A yaml configuration file that contains at least the ```global_args```, ```model```, and ```inference``` sections. The ```inference``` section should be configured 
+correctly for SMILES or substructure inference. You can copy the correct inference settings from the yaml configuration files in ```example_configs```
 - ```--hnmr_file```: A text or tab separated csv file containing pairs of (ppm, intensity) values on each row separated by a space.
 - ```--cnmr_file```: A text file containing a comma separated list of the carbon ppm shifts in the NMR.
 - ```--hnmr_shifts```: A pickle file containing the shift grid as a 1D numpy array that is used to interpolate the <sup>1</sup>H NMR spectrum. You can find shift grid used in the paper in ```example_configs/HNMR_shifts.p```.
@@ -130,6 +132,9 @@ length of the model's alphabet, and is as follows:
 At the end of the inference, the predictions will be saved to the ```save_dir``` specified in the ```global_args``` section as an hdf5 file under the ```test``` group. 
 
 # Analysis
+> [!WARNING]
+> Analysis is only useful when you are training a model on a dataset with known targets and you want to compare its predictions against the target values. If you are just doing a one-off inference using the model, analysis will not work. 
+
 If you want to calculate metrics for substructures, configure the ```analysis``` section of your YAML file as follows:
 ```yaml
 analysis:
@@ -148,8 +153,6 @@ analysis:
 ```
 where the substructures is set to point to the ```example_configs/substructures_957.pkl``` file which contains the SMART strings for the 957 substructures used. 
 
-> [!WARNING]
-> Analysis is only useful when you are training a model on a dataset with known targets and you want to compare its predictions against the target values. If you are just doing a one-off inference using the model, analysis will not work. 
 
 # Tensorboard visualization
 NMR2Struct uses Tensorboard to visualize the learning curves when training the models, and it is installed with the environment. To use tensorboard, do the following:
