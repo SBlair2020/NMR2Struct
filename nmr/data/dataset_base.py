@@ -222,6 +222,7 @@ class SingleNMRDataset(Dataset):
             content = f.read()
         #ASSUME for now that CNMR is a comma separated list of ppm shifts
         all_vals = np.array([float(val) for val in content.split(',')])
+        all_vals = np.sort(all_vals)
         bins = np.digitize(all_vals, self.cnmr_shifts)
         bins = np.where(bins == len(self.cnmr_shifts), len(self.cnmr_shifts) - 1, bins)
         spectrum = np.zeros(len(self.cnmr_shifts))
