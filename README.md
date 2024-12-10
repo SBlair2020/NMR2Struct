@@ -13,7 +13,7 @@ Paper available at: https://pubs.acs.org/doi/10.1021/acscentsci.4c01132
 Data available on Zenodo at: https://zenodo.org/records/13892026
 
 # Installation
-We recommend having Anaconda installed as your package manager. To install NMR2Struct, do the following:
+We recommend having Anaconda installed as your package manager and to run this code on a Linux-based GPU cluster. To install NMR2Struct, do the following:
 ```
 git clone https://github.com/MarklandGroup/NMR2Struct.git
 cd NMR2Struct
