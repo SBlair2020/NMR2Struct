@@ -26,7 +26,7 @@ Make sure to run ``conda update conda`` before installing to ensure your anacond
 
 # The configuration file
 
-All of the functionality in NMR2Struct is controlled via a YAMl configuration file system. A YAML file consists of sections with fields that can have different user-specified values. While most fields in a YAML file is populated with strings, fields can also be set to booleans (```True``` and ```False```), integers, floats, lists of values, and None types with ```null```. The YAML files in NMR2Struct have the following sections:
+All of the functionality in NMR2Struct is controlled via a YAMl configuration file system. A YAML file consists of sections with fields that can have different user-specified values. While most fields in a YAML file are populated with strings, fields can also be set to booleans (```True``` and ```False```), integers, floats, lists of values, and None types with ```null```. The YAML files in NMR2Struct have the following sections:
 - **global_args**: Controls general arguments such as the seed, number of GPUs, where to save everything, and tensor datatypes
 - **data**: Determines how input and target data are processed for training and inference, and where to find data files
 - **model**: Model architecture arguments that are used for instantiating the model
@@ -41,9 +41,9 @@ For the ```data``` section specifically, the ```spectra_file```, ```label_file``
 # Convention for tokens
 
 This section lists how you should set the value for specific alphabet and token related fields within the YAML configuration files. These fields are automatically populated
-during training based on the dataset and saved as a completed training yaml config file that you can use. However, if you want to infer a model without training, it is necessary to know what the token value should be. 
+during training based on the dataset and saved as a completed training YAML config file that you can use. However, if you want to infer a model without training, it is necessary to know what the token value should be. 
 This is broken down into two sections, one for the 
-substrcture-to-structure transformer and one for the multitaks model.
+substrcture-to-structure transformer and one for the multitask model.
 
 ## Substructure-to-structure transformer
 | Field | Value |
@@ -73,7 +73,7 @@ To train a substructure-to-structure transformer, follow these steps:
 2. Modify the config file to point to the correct splitting file at  ```training.splits```. The splitting file should be a dictionary of three fields which specify the indices that should go into the training, validation, and testing set, respectively. If you do not want to provide a splitting dictionary, set this field to ```null``` in which case the 
 splitting is done based on the ```train_size```, ```val_size```, and ```test_size``` fractions.
 3. Copy the training config file into a directory where you want to run the training.
-4. Run the following command (assuming you named your yaml file to be ```config.yaml```):
+4. Run the following command (assuming you renamed your YAML file to be ```config.yaml```):
 ```
 nmr_train config.yaml
 ```
@@ -106,7 +106,7 @@ Once the alphabet is set, just run:
 ```
 nmr_infer config.yaml 0 1
 ```
-where ```config.yaml``` is your modified training script from the training section which should contain an inference section tailored for the substructure-to-structure transformer. The 0 and 1 refer to the local rank and total number of GPU processes and is used to control multi-GPU inference. For most cases, inference on one GPU is sufficient, so we use a local rank of 0 and 1 GPU process. Make sure to set the ```splits``` field correctly under the ```inference``` section. The same procedure holds for inferring SMILES from a spectrum-to-structure multitask model. By default, the ```inference``` sections of the provided yaml files are configured to have the models generate SMILES strings. 
+where ```config.yaml``` is your modified training script from the training section which should contain an inference section tailored for the substructure-to-structure transformer. The 0 and 1 refer to the local rank and total number of GPU processes and is used to control multi-GPU inference. For most cases, inference on one GPU is sufficient, so we use a local rank of 0 and 1 GPU process. Make sure to set the ```inference.splits``` field correctly. The same procedure holds for inferring SMILES from a spectrum-to-structure multitask model. By default, the ```inference``` sections of the provided YAML files are configured to have the models generate SMILES strings. 
 
 To infer substructures from the multitask model, modify the inference section as follows, being sure to fill in the splits file which denotes which parts of the dataset belong to the test set:
 ```yaml
@@ -144,14 +144,14 @@ nmr_infer_single_spectrum \
     --normalize
 ```
 > [!NOTE]
-> This entry point only works for inferring structure/substructures from spectrum using a multitask model.
+> This entry point only works for inferring structure/substructures from spectra using a multitask model.
 
 The arguments are as follows: 
-- ```--config```: A yaml configuration file that contains at least the ```global_args```, ```model```, and ```inference``` sections. The ```inference``` section should be configured 
-correctly for SMILES or substructure inference. You can copy the correct inference settings from the yaml configuration files in ```example_configs```
+- ```--config```: A YAML configuration file that contains at least the ```global_args```, ```model```, and ```inference``` sections. The ```inference``` section should be configured 
+correctly for SMILES or substructure inference. You can copy the correct inference settings from the YAML configuration files in ```example_configs```.
 - ```--hnmr_file```: A text or tab separated csv file containing pairs of (ppm, intensity) values on each row separated by a space.
 - ```--cnmr_file```: A text file containing a comma separated list of the carbon ppm shifts in the NMR.
-- ```--hnmr_shifts```: A pickle file containing the shift grid as a 1D numpy array that is used to interpolate the <sup>1</sup>H NMR spectrum. You can find shift grid used in the paper in ```example_configs/HNMR_shifts.p```.
+- ```--hnmr_shifts```: A pickle file containing the shift grid as a 1D numpy array that is used to interpolate the <sup>1</sup>H NMR spectrum. You can find the shift grid used in the paper in ```example_configs/HNMR_shifts.p```.
 - ```--cnmr_shifts```: A pickle file containing the shift grid for discretizing the <sup>13</sup>C NMR spectrum. The grid used in the paper can be found in ```example_configs/CNMR_shifts.p```.
 - ```--ckpt```: The model checkpoint you want to use. Its architecture should match the one specified in ```--config```.
 - ```---normalize```: Toggles normalization of the <sup>1</sup>H NMR spectrum by dividing the spectrum by the its highest intensity.  
@@ -168,7 +168,7 @@ analysis:
   analysis_type: "substructure"
   pattern: "predictions_dataset_0_[0-9]+.h5"
 ```
-This will calculate metrics such as RMSEs, F1-scores, BCE values, etc. 
+This will calculate metrics such as RMSEs, F1-scores, BCE values, etc. and saves the results as a dictionary at ```global_args.savedir```. 
 
 For SMILES analysis, configure the ```analysis``` section as follows:
 ```yaml
@@ -178,15 +178,14 @@ analysis:
   f_addn_args: 
     substructures: PATH TO SUBSTRUCTURE FILE
 ```
-where the substructures is set to point to the ```example_configs/substructures_957.p``` file which contains the SMART strings for the 957 substructures used. 
-
+where the substructures is set to point to the ```example_configs/substructures_957.p``` file which contains the SMART strings for the 957 substructures used. The results will be saved to 
+a hdf5 file called ```processed_predictions.h5``` located at ```global_args.savedir```. 
 
 # Tensorboard visualization
-NMR2Struct uses Tensorboard to visualize the learning curves when training the models, and it is installed with the environment. To use tensorboard, do the following:
+NMR2Struct uses Tensorboard to visualize the learning curves when training the models, and it is installed with the environment. To use Tensorboard, do the following:
 ```
 cd /path/to/training/directory
 tensorboard --logdir=./
 ```
-This should automatically do port-forwarding to your browser where you will see the Tensorboard dashboard.
-
-
+This should automatically do port-forwarding to your browser where you will see the Tensorboard dashboard. Tensorboard searches for all event files in a parent directory, so you can 
+visualize multiple runs at once if they are all contained within the same parent directory.
