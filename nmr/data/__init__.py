@@ -1,4 +1,5 @@
 from .build_dataset import create_dataset
+from .dataset_base import SingleNMRDataset
 
 def get_input_generators():
     all_input_generators = [
