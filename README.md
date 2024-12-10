@@ -33,23 +33,55 @@ All of the functionality in NMR2Struct is controlled via a YAMl configuration fi
 - **training**: Arguments for the optimization protocol, such as the data split, number of epochs, optimizer, etc.
 - **analysis**: Arguments for computing performance metrics on the model 
 
-For the ```data``` section specifically, the ```spectra_file```, ```label_file```, and ```smiles_file``` fields contain lists of files and there should be the same number of elements in each list, even if some elements are set to ```null```. There is an element-wise correspondence of the elements in each list, so the first file spectrum, label, and smiles file together forms one dataset, and so on. This is designed so that the training and losses can be computed separately for each dataset and is useful for more advanced early-stopping experiments. The files should have the following formats:
+For the ```data``` section specifically, the ```spectra_file```, ```label_file```, and ```smiles_file``` fields contain lists of files and there should be the same number of elements in each list, even if some elements are set to ```null```. There is an element-wise correspondence of the elements in each list, so the first spectrum, label, and smiles file together forms one dataset, and so on. This is designed so that the training and losses can be computed separately for each dataset and is useful for more advanced early-stopping experiments. The files should have the following formats:
 - **spectra**: These should be hdf5 files that contain one dataset called 'spectra' where each row is a one-dimensional vector representing the concatenated <sup>1</sup>H NMR and <sup>13</sup>C NMR spectrum.
-- **label**: These should beb hdf5 files that contain one dataset called 'substructure_labels' where each row is a one-dimensional binary vector representing the substructures detected in each molecule.
+- **label**: These should be hdf5 files that contain one dataset called 'substructure_labels' where each row is a one-dimensional binary vector representing the substructures detected in each molecule.
 - **smiles**: This should be a numpy file that contains a single array with all SMILES strings encoded into binary format. Be sure to do ```x.decode('utf-8')``` when reading strings from this format.
 
+# Convention for tokens
+
+This section lists how you should set the value for specific alphabet and token related fields within the YAML configuration files. These fields are automatically populated
+during training based on the dataset and saved as a completed training yaml config file that you can use. However, if you want to infer a model without training, it is necessary to know what the token value should be. 
+This is broken down into two sections, one for the 
+substrcture-to-structure transformer and one for the multitaks model.
+
+## Substructure-to-structure transformer
+| Field | Value |
+| -------- | ------- |
+| ```model.model_args.source_size``` | number of substructures + 1 (e.g., 958 for the 957 substructures) |
+| ```model.model_args.target_size``` | length of alphabet + 3 |
+| ```model.model_args.src_pad_token``` | 0 |
+| ```model.model_args.tgt_pad_token``` | length of alphabet |
+| ```inference.run_inference_args.pred_gen_opts.tgt_start_token``` | length of alphabet + 1 |
+| ```inference.run_inference_args.pred_gen_opts.tgt_stop_token``` | length of alphabet + 2 |
+
+## Spectrum-to-structure multitask model
+| Field | Value |
+| -------- | ------- |
+| ```model.model_args.structure_model_args.source_size``` | 28045 |
+| ```model.model_args.structure_model_args.target_size``` | length of alphabet + 3|
+| ```model.model_args.structure_model_args.src_pad_token``` | null | 
+| ```model.model_args.structure_model_args.tgt_pad_token``` | length of alphabet |
+| ```model.model_args.substructure_model_args.source_size``` | 28045 | 
+| ```model.model_args.substructure_model_args.src_pad_token``` | null |
+| ```inference.run_inference_args.pred_gen_opts.tgt_start_token``` | length of alphabet + 1 |
+| ```inference.run_inference_args.pred_gen_opts.tgt_stop_token``` | length of alphabet + 2 |
 
 # Training 
 To train a substructure-to-structure transformer, follow these steps:
-1. Modify the training configuration file under ```example_configs/training_substruct_to_struct.yaml``` to point to the correct substructure file under the ```label_file``` field and the correct smiles file under the ```smiles_file``` field in the ```data``` section. The ```spectra_file``` field can be set to a list of ```null``` values because spectra are not used for training the substructure-to-structure model.
-2. Modify the config file to point to the correct splitting file under the ```splits``` field in the ```training``` section. The splitting file should be a dictionary of three fields which specify the indices that should go into the training, validation, and testing set, respectively. If you do not want to provide a splitting dictionary, set this field to ```null```. 
+1. Modify the training configuration file under ```example_configs/training_substruct_to_struct.yaml``` to point to the correct substructure file at ```data.label_file``` and the correct smiles file under the ```data.smiles_file```. The ```data.spectra_file``` field can be set to a list of ```null``` values because spectra are not used for training the substructure-to-structure model.
+2. Modify the config file to point to the correct splitting file at  ```training.splits```. The splitting file should be a dictionary of three fields which specify the indices that should go into the training, validation, and testing set, respectively. If you do not want to provide a splitting dictionary, set this field to ```null``` in which case the 
+splitting is done based on the ```train_size```, ```val_size```, and ```test_size``` fractions.
 3. Copy the training config file into a directory where you want to run the training.
 4. Run the following command (assuming you named your yaml file to be ```config.yaml```):
 ```
 nmr_train config.yaml
 ```
 
-A similar procedure is used for training a spectrum-to-structure multitask model, but make sure to use the ```example_configs/training_spectrum_to_struct.yaml``` file as the starting point and set the ```spectra_file``` field to list the correct spectra files.
+A similar procedure is used for training a spectrum-to-structure multitask model, but make sure to:
+- Use the ```example_configs/training_spectrum_to_struct.yaml``` file as the starting point and set the ```spectra_file``` field to list the correct spectra files.
+- Set the ```model.model_args.structure_model_ckpt``` to the correct checkpoint if using a pretrained transformer, otherwise leave ```null```.
+- Set the ```data.alphabet``` as either ```null``` if not using a pretrained transformer or to the alphabet used by the pretrained transformer.
 
 # Inference (with full dataset)
 > [!WARNING]
@@ -99,7 +131,8 @@ Running inference writes the raw predictions as an hdf5 file to the save directo
 
 
 # Inference (on a specific example)
-To infer a specific example, we recommend using the single spectrum inference entry point. To use this entry point, do the following:
+To infer a specific example, we recommend using the single spectrum inference entry point. First, be sure to set the ```inference.run_inference_args.pred_gen_opts.tgt_start_token``` and ```inference.run_inference_args.pred_gen_opts.tgt_stop_token``` correctly according to the section on token conventions.
+To use this entry point, do the following:
 ```
 nmr_infer_single_spectrum \
     --config YAML_CONFIG_FILE \
@@ -123,13 +156,7 @@ correctly for SMILES or substructure inference. You can copy the correct inferen
 - ```--ckpt```: The model checkpoint you want to use. Its architecture should match the one specified in ```--config```.
 - ```---normalize```: Toggles normalization of the <sup>1</sup>H NMR spectrum by dividing the spectrum by the its highest intensity.  
 
-For the inference section in the config file, there are two fields ```tgt_start_token``` and ```tgt_stop_token``` which are the start-of-sequence and end-of-sequence tokens for SMILES generation, respectively. The convention for tokens throughout the codebase is based on the 
-length of the model's alphabet, and is as follows:
-- padding: length of the alphabet
-- start: padding + 1
-- stop: start + 1 
-
-At the end of the inference, the predictions will be saved to the ```save_dir``` specified in the ```global_args``` section as an hdf5 file under the ```test``` group. 
+At the end of the inference, the predictions will be saved to the ```global_args.savedir``` as an hdf5 file under the ```test``` group. 
 
 # Analysis
 > [!WARNING]
@@ -151,7 +178,7 @@ analysis:
   f_addn_args: 
     substructures: PATH TO SUBSTRUCTURE FILE
 ```
-where the substructures is set to point to the ```example_configs/substructures_957.pkl``` file which contains the SMART strings for the 957 substructures used. 
+where the substructures is set to point to the ```example_configs/substructures_957.p``` file which contains the SMART strings for the 957 substructures used. 
 
 
 # Tensorboard visualization
