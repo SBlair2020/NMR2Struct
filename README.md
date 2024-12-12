@@ -13,7 +13,7 @@ Paper available at: https://pubs.acs.org/doi/10.1021/acscentsci.4c01132
 Data available on Zenodo at: https://zenodo.org/records/13892026
 
 # Installation
-We recommend having Anaconda installed as your package manager and to run this code on a Linux-based GPU cluster. To install NMR2Struct, do the following:
+We recommend having [Anaconda](https://www.anaconda.com/download) installed as your package manager and to run this code on a Linux-based GPU cluster. To install NMR2Struct, do the following:
 ```
 git clone https://github.com/MarklandGroup/NMR2Struct.git
 cd NMR2Struct
@@ -182,7 +182,7 @@ where the substructures is set to point to the ```example_configs/substructures_
 a hdf5 file called ```processed_predictions.h5``` located at ```global_args.savedir```. 
 
 # Tensorboard visualization
-NMR2Struct uses Tensorboard to visualize the learning curves when training the models, and it is installed with the environment. To use Tensorboard, do the following:
+NMR2Struct uses [Tensorboard](https://www.tensorflow.org/tensorboard) to visualize the learning curves when training the models, and it is installed with the environment. To use Tensorboard, do the following:
 ```
 cd /path/to/training/directory
 tensorboard --logdir=./
