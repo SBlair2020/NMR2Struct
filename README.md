@@ -149,14 +149,14 @@ nmr_infer_single_spectrum \
 The arguments are as follows: 
 - ```--config```: A YAML configuration file that contains at least the ```global_args```, ```model```, and ```inference``` sections. The ```inference``` section should be configured 
 correctly for SMILES or substructure inference. You can copy the correct inference settings from the YAML configuration files in ```example_configs```.
-- ```--hnmr_file```: A text or tab separated csv file containing pairs of (ppm, intensity) values on each row separated by a space.
-- ```--cnmr_file```: A text file containing a comma separated list of the carbon ppm shifts in the NMR.
+- ```--hnmr_file```: A text or tab separated csv file containing pairs of (ppm, intensity) values on each row separated by a space. If not using an <sup>1</sup>H NMR spectrum, pass "None" to this argument.
+- ```--cnmr_file```: A text file containing a comma separated list of the carbon ppm shifts in the NMR. If not using an <sup>13</sup>C NMR spectrum, pass "None" to this argument.
 - ```--hnmr_shifts```: A pickle file containing the shift grid as a 1D numpy array that is used to interpolate the <sup>1</sup>H NMR spectrum. You can find the shift grid used in the paper in ```example_configs/HNMR_shifts.p```.
 - ```--cnmr_shifts```: A pickle file containing the shift grid for discretizing the <sup>13</sup>C NMR spectrum. The grid used in the paper can be found in ```example_configs/CNMR_shifts.p```.
 - ```--ckpt```: The model checkpoint you want to use. Its architecture should match the one specified in ```--config```.
 - ```---normalize```: Toggles normalization of the <sup>1</sup>H NMR spectrum by dividing the spectrum by the its highest intensity.  
 
-At the end of the inference, the predictions will be saved to the ```global_args.savedir``` as an hdf5 file under the ```test``` group. 
+At the end of the inference, the predictions will be saved to the ```global_args.savedir``` as an hdf5 file under the ```test``` group. You must pass in at least one spectrum, either an <sup>1</sup>H or <sup>13</sup>C NMR, to the respective argument. 
 
 # Analysis
 > [!WARNING]
