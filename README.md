@@ -130,8 +130,8 @@ inference:
 Running inference writes the raw predictions as an hdf5 file to the save directory that you specified under the ```global_args``` section, which should also be where the model checkpoints and tensorboard files are saved.
 
 
-# Inference (on a specific example)
-To infer a specific example, we recommend using the single spectrum inference entry point. First, be sure to set the ```inference.run_inference_args.pred_gen_opts.tgt_start_token``` and ```inference.run_inference_args.pred_gen_opts.tgt_stop_token``` correctly according to the section on token conventions.
+# Inference (on a specific spectrum)
+To infer the structures and/or substructures from a specific set of spectra, we recommend using the single spectrum inference entry point. First, be sure to set the ```inference.run_inference_args.pred_gen_opts.tgt_start_token``` and ```inference.run_inference_args.pred_gen_opts.tgt_stop_token``` correctly according to the section on token conventions.
 To use this entry point, do the following:
 ```
 nmr_infer_single_spectrum \
