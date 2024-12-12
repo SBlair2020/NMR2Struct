@@ -13,12 +13,17 @@ from .top_level_utils import (
 from typing import Any
 import os
 
+def none_or_str(value):
+    if value.lower() == 'none':
+        return None
+    return value
+
 def get_args() -> dict:
     '''Parses the passed yaml file to get arguments'''
     parser = argparse.ArgumentParser(description='Run NMR inference')
     parser.add_argument('--config', type = str, help = 'The path to the YAML configuration file that contains model and inference parameters')
-    parser.add_argument('--hnmr_file', type = str, help = 'The path to the HNMR file')
-    parser.add_argument('--cnmr_file', type = str, help = 'The path to the CNMR file')
+    parser.add_argument('--hnmr_file', type = none_or_str, help = 'The path to the HNMR file')
+    parser.add_argument('--cnmr_file', type = none_or_str, help = 'The path to the CNMR file')
     parser.add_argument('--hnmr_shifts', type = str, help = 'The path to the HNMR shifts')
     parser.add_argument('--cnmr_shifts', type = str, help = 'The path to the CNMR shifts')
     parser.add_argument('--ckpt', type = str, help = 'The path to the model checkpoint to use for inference')
