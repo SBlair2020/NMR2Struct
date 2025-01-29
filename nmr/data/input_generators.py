@@ -10,6 +10,15 @@ def look_ahead_substructs(labels: np.ndarray) -> int:
         max_len = max(max_len, np.count_nonzero(labels[i]))
     return max_len
 
+def look_ahead_smiles(smiles: list[str], tokenizer: BasicSmilesTokenizer) -> int:
+    """Determines the maximum length of the smiles strings in numbers of tokens"""
+    max_len = 0
+    for i in range(len(smiles)):
+        tokens = tokenizer.tokenize(smiles[i])
+        max_len = max(max_len, len(tokens))
+    #To account for additional stop token 
+    return max_len + 1 
+
 ### Spectrum processing methods ###
 def threshold_spectra(spectra: np.ndarray, eps: float) -> np.ndarray:
     """Sets values lower than eps to 0"""
@@ -583,4 +592,45 @@ class SpectrumRepresentationThresholdPairs(InputGeneratorBase):
                                            self.pad_token,
                                            self.max_len)
         return processed_spectrum
-    
+
+class SMILESRepresentationTokenized(InputGeneratorBase):
+    """Processes SMILES strings into tokenized arrays with padding"""
+    def __init__(self, 
+                 spectra: np.ndarray,
+                 labels: np.ndarray,
+                 smiles: np.ndarray,
+                 tokenizer: BasicSmilesTokenizer,
+                 alphabet: np.ndarray,
+                 eps: float):
+        """
+        Args:
+            spectra_file: Path to the HDF5 file with spectra
+            smiles_file: Path to the HDF5 file with smiles
+            label_file: Path to the HDF5 file with substructure labels
+            input_generator: Function name that generates the model input
+            target_generator: Function name that generates the model target
+            alphabet: Path to the alphabet file
+            eps: Epsilon value for thresholding spectra
+        """
+        self.pad_token = len(alphabet)
+        self.start_token = len(alphabet) + 1
+        self.stop_token = len(alphabet) + 2
+        self.tokenizer = tokenizer
+        self.max_len = look_ahead_smiles(smiles, self.tokenizer)
+        self.index_map = {char: i for i, char in enumerate(alphabet)}
+        self.alphabet_size = len(alphabet) + 3
+
+    def transform(self, spectra: np.ndarray, smiles: str, substructures: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Transforms the input smiles string into tokenized array with padding"""
+        tokenized_smiles = self.tokenizer.tokenize(smiles) #Splits up SMILES into tokens
+        # full_seq = [self.index_map[char] for char in tokenized_smiles] + [self.stop_token] #Tokens + stop
+        shifted_seq = [self.start_token] + [self.index_map[char] for char in tokenized_smiles] #start + tokens
+        shifted_seq = np.pad(shifted_seq,
+                            (0, self.max_len - len(shifted_seq)),
+                            'constant',
+                            constant_values = (self.pad_token,))
+        # full_seq = np.pad(full_seq,
+        #                     (0, self.max_len - len(full_seq)),
+        #                     'constant',
+        #                     constant_values = (self.pad_token,))
+        return shifted_seq
